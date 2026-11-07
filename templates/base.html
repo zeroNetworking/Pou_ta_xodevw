@@ -1,16 +1,16 @@
-<!DOCTYPE html>
+{% from "_macros.html" import icon %}<!DOCTYPE html>
 <html lang="el">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="theme-color" content="#ffffff">
+    <meta name="theme-color" content="#f2f2f2">
     <title>{% block title %}Οικονομικά{% endblock %} — Που τα ξοδεύω</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+    {% include "_fonts.html" %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/swiss.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <!-- Dark mode + density: apply before paint to prevent flash -->
     <script>
         if (localStorage.getItem('financeDarkMode') === '1')
@@ -23,8 +23,10 @@
 <div class="app-shell">
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-brand">
-            <span class="brand-icon">💰</span>
-            <span class="brand-name">Που τα ξοδεύω</span>
+            <a href="{{ url_for('index') }}" class="brand-mark">
+                <span class="brand-line">Που τα</span>
+                <span class="brand-line">ξοδεύω</span>
+            </a>
             <button class="sidebar-close-btn" onclick="closeMobileDrawer()" aria-label="Κλείσιμο">✕</button>
         </div>
 
@@ -35,59 +37,106 @@
 
         <!-- User info row: username + privacy toggle + profile link + logout -->
         <div class="sidebar-user">
-            <span class="user-icon">👤</span>
+            <span class="user-icon">{{ icon('user', 14) }}</span>
             <span class="user-name">{{ username }}</span>
-            <button class="privacy-btn" id="privacyToggle" onclick="togglePrivacy()" title="Απόκρυψη ποσών">👁</button>
-            <!-- Profile settings link — NEW -->
+            <button class="privacy-btn" id="privacyToggle" onclick="togglePrivacy()" title="Απόκρυψη ποσών">{{ icon('eye', 15) }}</button>
             <a href="{{ url_for('profile') }}"
                class="profile-nav-btn {% if request.endpoint == 'profile' %}active{% endif %}"
-               title="Ρυθμίσεις προφίλ">⚙</a>
-            <a href="/logout" class="logout-btn" title="Αποσύνδεση">🚪</a>
+               title="Ρυθμίσεις προφίλ">{{ icon('settings', 15) }}</a>
+            <a href="/logout" class="logout-btn" title="Αποσύνδεση">{{ icon('log-out', 15) }}</a>
         </div>
 
         <nav class="sidebar-nav">
-            <a href="{{ url_for('index') }}" class="nav-item {% if request.endpoint == 'index' %}active{% endif %}">
-                <span class="nav-icon">🏠</span><span>Dashboard</span>
-            </a>
+            <!-- Primary links also live in the top bar; kept here for the mobile drawer -->
+            <div class="sidebar-primary">
+                <a href="{{ url_for('index') }}" class="nav-item {% if request.endpoint == 'index' %}active{% endif %}"><span>Dashboard</span></a>
+                <a href="{{ url_for('calendar_view') }}" class="nav-item {% if request.endpoint == 'calendar_view' %}active{% endif %}"><span>Ημερολόγιο</span></a>
+                <a href="{{ url_for('analytics') }}" class="nav-item {% if request.endpoint == 'analytics' %}active{% endif %}"><span>Analytics</span></a>
+                <a href="{{ url_for('search') }}" class="nav-item {% if request.endpoint == 'search' %}active{% endif %}"><span>Αναζήτηση</span></a>
+            </div>
 
             <!-- Collapsible months section -->
             <button class="nav-section-toggle" onclick="toggleMonthsList()" id="monthsToggleBtn">
-                <span>📅 Μήνες</span>
+                <span>Μήνες</span>
                 <span class="toggle-arrow" id="monthsArrow">▸</span>
             </button>
             <div class="nav-months-list collapsed" id="monthsList">
                 <button class="nav-item new-month-btn" onclick="openNewMonthModal()">
-                    <span class="nav-icon">➕</span><span>Νέος Μήνας</span>
+                    <span class="nav-icon">{{ icon('plus', 14) }}</span><span>Νέος Μήνας</span>
                 </button>
                 {% if all_months is defined %}
                     {% for m in all_months %}
                     <a href="{{ url_for('month_detail', month_id=m.id) }}"
                        class="nav-item nav-month {% if request.endpoint == 'month_detail' and month is defined and month.id == m.id %}active{% endif %}">
-                        <span class="nav-dot {% if m.is_closed %}closed{% endif %}">{% if m.is_closed %}🔒{% else %}📂{% endif %}</span>
+                        <span class="nav-dot {% if m.is_closed %}closed{% endif %}" title="{% if m.is_closed %}Κλειστός{% else %}Ενεργός{% endif %}"></span>
                         <span>{{ m.name }}</span>
                     </a>
                     {% endfor %}
                 {% endif %}
             </div>
 
-            <div class="nav-section-label">Ανάλυση</div>
-            <a href="{{ url_for('calendar_view') }}" class="nav-item {% if request.endpoint == 'calendar_view' %}active{% endif %}">
-                <span class="nav-icon">📅</span><span>Ημερολόγιο</span>
-            </a>
-            <a href="{{ url_for('analytics') }}" class="nav-item {% if request.endpoint == 'analytics' %}active{% endif %}">
-                <span class="nav-icon">📊</span><span>Analytics</span>
-            </a>
-            <a href="{{ url_for('search') }}" class="nav-item {% if request.endpoint == 'search' %}active{% endif %}">
-                <span class="nav-icon">🔍</span><span>Αναζήτηση</span>
-            </a>
+            <div class="nav-section-label">Εργαλεία</div>
             <button class="nav-item" onclick="openCalcModal()">
-                <span class="nav-icon">🧮</span><span>Αριθμομηχανή</span>
+                <span class="nav-icon">{{ icon('calculator', 14) }}</span><span>Αριθμομηχανή</span>
             </button>
         </nav>
     </aside>
 
     <main class="main-content">
-        {% block content %}{% endblock %}
+        <!-- Sticky top bar: 80px, translucent with backdrop blur -->
+        <header class="topbar">
+            <div class="topbar-crumb">
+                <span class="topbar-brand">Που τα ξοδεύω</span>
+                <span class="topbar-sep">/</span>
+                <span class="topbar-page">{{ self.title() }}</span>
+            </div>
+            <nav class="topbar-links">
+                <a href="{{ url_for('index') }}" class="{% if request.endpoint == 'index' %}active{% endif %}">Dashboard</a>
+                <a href="{{ url_for('calendar_view') }}" class="{% if request.endpoint == 'calendar_view' %}active{% endif %}">Ημερολόγιο</a>
+                <a href="{{ url_for('analytics') }}" class="{% if request.endpoint == 'analytics' %}active{% endif %}">Analytics</a>
+                <a href="{{ url_for('search') }}" class="{% if request.endpoint == 'search' %}active{% endif %}">Αναζήτηση</a>
+            </nav>
+            <button class="pill-btn" onclick="openNewMonthModal()">{{ icon('plus', 14) }}<span>Νέος μήνας</span></button>
+        </header>
+
+        <div class="page">
+            {% block content %}{% endblock %}
+        </div>
+
+        <!-- Dark footer: brand · navigation · account · details -->
+        <footer class="site-footer">
+            <div class="footer-grid">
+                <div class="footer-col footer-brand">
+                    <div class="footer-logo">Που τα ξοδεύω</div>
+                    <p>Προσωπική λογιστική ανά μήνα. Κλειστοί μήνες, σταθερά έξοδα, budgets και αναφορές — χωρίς θόρυβο.</p>
+                </div>
+                <div class="footer-col">
+                    <div class="footer-title">Πλοήγηση</div>
+                    <a href="{{ url_for('index') }}">Dashboard</a>
+                    <a href="{{ url_for('calendar_view') }}">Ημερολόγιο</a>
+                    <a href="{{ url_for('analytics') }}">Analytics</a>
+                    <a href="{{ url_for('search') }}">Αναζήτηση</a>
+                </div>
+                <div class="footer-col">
+                    <div class="footer-title">Λογαριασμός</div>
+                    <a href="{{ url_for('profile') }}">Προφίλ & ρυθμίσεις</a>
+                    <button type="button" onclick="openCalcModal()">Αριθμομηχανή</button>
+                    <button type="button" onclick="togglePrivacy()">Απόκρυψη ποσών</button>
+                    <a href="/logout">Αποσύνδεση</a>
+                </div>
+                <div class="footer-col footer-details">
+                    <div class="footer-title">Στοιχεία</div>
+                    <div class="footer-detail">{{ icon('user', 15) }}<span>{{ username }}</span></div>
+                    <div class="footer-detail">{{ icon('calendar', 15) }}<span>{% if now is defined %}{{ now.strftime('%d.%m.%Y') }}{% endif %}</span></div>
+                    <div class="footer-detail">{{ icon('clock', 15) }}<span>Αυτόματη αποσύνδεση σε 2 ώρες</span></div>
+                    <div class="footer-detail">{{ icon('shield', 15) }}<span>Τα δεδομένα μένουν στον server σου</span></div>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <span>© {% if now is defined %}{{ now.year }}{% endif %} Που τα ξοδεύω</span>
+                <span>Personal finance ledger</span>
+            </div>
+        </footer>
     </main>
 </div>
 
@@ -96,27 +145,22 @@
 <nav class="bottom-nav" id="bottomNav">
     <a href="{{ url_for('index') }}"
        class="bottom-nav-item {% if request.endpoint == 'index' %}active{% endif %}">
-        <span class="bottom-nav-icon">🏠</span>
         <span class="bottom-nav-label">Home</span>
     </a>
     <button class="bottom-nav-item" onclick="toggleMobileDrawer()">
-        <span class="bottom-nav-icon">📋</span>
         <span class="bottom-nav-label">Μήνες</span>
     </button>
     <a href="{{ url_for('calendar_view') }}"
        class="bottom-nav-item {% if request.endpoint == 'calendar_view' %}active{% endif %}">
-        <span class="bottom-nav-icon">📅</span>
-        <span class="bottom-nav-label">Ημερολόγιο</span>
+        <span class="bottom-nav-label">Ημερολ.</span>
     </a>
     <a href="{{ url_for('analytics') }}"
        class="bottom-nav-item {% if request.endpoint == 'analytics' %}active{% endif %}">
-        <span class="bottom-nav-icon">📊</span>
         <span class="bottom-nav-label">Analytics</span>
     </a>
     <a href="{{ url_for('search') }}"
        class="bottom-nav-item {% if request.endpoint == 'search' %}active{% endif %}">
-        <span class="bottom-nav-icon">🔍</span>
-        <span class="bottom-nav-label">Αναζήτηση</span>
+        <span class="bottom-nav-label">Αναζήτ.</span>
     </a>
 </nav>
 
@@ -154,12 +198,12 @@
 <!-- Suggest New Month Modal -->
 <div class="modal-overlay {% if suggest_new_month is defined and suggest_new_month %}active{% endif %}" id="suggestMonthModal">
     <div class="modal">
-        <div class="modal-header"><h3>🗓 Νέος Μήνας</h3></div>
+        <div class="modal-header"><h3>Νέος Μήνας</h3></div>
         <div class="modal-body">
             <p style="font-size:15px; margin-bottom:8px;">
                 Καλωσόρισες στον <strong>{{ greek_months[next_month] }} {{ next_year }}</strong>!
             </p>
-            <p style="font-size:13px; color:#666;">Θέλεις να δημιουργηθεί αυτόματα ο νέος μήνας;</p>
+            <p style="font-size:13px; color:var(--text-muted);">Θέλεις να δημιουργηθεί αυτόματα ο νέος μήνας;</p>
         </div>
         <div class="modal-footer">
             <button class="btn btn-ghost" onclick="dismissSuggest()">Όχι τώρα</button>
@@ -174,7 +218,7 @@
 <div class="modal-overlay" id="calcModal" onclick="closeModalOnOverlay(event)">
     <div class="modal calc-modal">
         <div class="modal-header">
-            <h3>🧮 Αριθμομηχανή</h3>
+            <h3>Αριθμομηχανή</h3>
             <button class="modal-close" onclick="closeCalcModal()">✕</button>
         </div>
         <div class="calc-body">

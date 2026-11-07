@@ -1,9 +1,10 @@
 {% extends "base.html" %}
+{% from "_macros.html" import echo, icon %}
 {% block title %}Analytics{% endblock %}
 {% block content %}
 <div class="page-header">
     <div>
-        <h1 class="page-title">Analytics</h1>
+        {{ echo('Analytics') }}
         <p class="page-sub">Γενική ανάλυση οικονομικών</p>
     </div>
 </div>
@@ -32,7 +33,7 @@
 <!-- Smart suggestions block: simple spending insights generated server-side -->
 {% if suggestions %}
 <div class="suggestions-block">
-    <div class="suggestions-title">💡 Προτάσεις</div>
+    <div class="suggestions-title">Προτάσεις</div>
     {% for s in suggestions %}<div class="suggestion-item">{{ s }}</div>{% endfor %}
 </div>
 {% endif %}
@@ -40,7 +41,7 @@
 <!-- ── Multi-Month Export ── -->
 {% if analytics_data %}
 <div class="card" style="margin-bottom:14px">
-    <div class="card-header">📥 Εξαγωγή Στατιστικών</div>
+    <div class="card-header">Εξαγωγή Στατιστικών</div>
     <div style="padding:14px 16px;">
         <p style="font-size:13px; color:var(--text-secondary); margin-bottom:12px;">
             Επέλεξε μήνες και κατέβασε CSV με όλες τις κινήσεις.
@@ -50,7 +51,7 @@
             <label class="export-month-check" style="display:inline-flex; align-items:center; gap:4px; font-size:12px; cursor:pointer; padding:4px 8px; border:1px solid var(--border); border-radius:6px; transition:all 0.15s;">
                 <input type="checkbox" class="export-cb" value="{{ d.id }}" style="margin:0;">
                 <span>{{ d.name }}</span>
-                {% if d.is_closed %}<span style="font-size:10px;">🔒</span>{% endif %}
+                {% if d.is_closed %}<span style="font-size:10px;"></span>{% endif %}
             </label>
             {% endfor %}
         </div>
@@ -61,7 +62,7 @@
             <button class="btn btn-ghost" onclick="selectAllExport()">Όλα</button>
             <button class="btn btn-ghost" onclick="clearAllExport()">Κανένα</button>
             <div style="flex:1"></div>
-            <button class="btn btn-primary" onclick="downloadExportCSV()">⬇ Κατέβασε CSV</button>
+            <button class="btn btn-primary" onclick="downloadExportCSV()">↓ Κατέβασε CSV</button>
         </div>
     </div>
 </div>
@@ -155,8 +156,8 @@ function getCatColor(name) {
 }
 
 // Shared Chart.js font settings for consistent typography across both charts
-const font = { family:'DM Sans', size:12 };
-const monoFont = { family:'DM Mono', size:11 };
+const font = { family:"'Satoshi', 'Inter', sans-serif", size:12 };
+const monoFont = { family:"'Satoshi', 'Inter', sans-serif", size:11 };
 
 // Dark mode detection for chart colors
 const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
@@ -171,8 +172,8 @@ new Chart(document.getElementById('monthChart'), {
     data: {
         labels: {{ analytics_data | map(attribute='name') | list | tojson }},
         datasets: [
-            { label:'Έσοδα',  data: {{ analytics_data | map(attribute='total_income')  | list | tojson }}, backgroundColor: isDark ? '#4ade80' : '#27AE60', borderRadius:4 },
-            { label:'Έξοδα',  data: {{ analytics_data | map(attribute='total_expense') | list | tojson }}, backgroundColor: isDark ? '#f87171' : '#E74C3C', borderRadius:4 }
+            { label:'Έσοδα',  data: {{ analytics_data | map(attribute='total_income')  | list | tojson }}, backgroundColor: isDark ? '#f2f2f2' : '#111111', borderRadius:0 },
+            { label:'Έξοδα',  data: {{ analytics_data | map(attribute='total_expense') | list | tojson }}, backgroundColor: '#b6b5b5', borderRadius:0 }
         ]
     },
     options: {
@@ -194,7 +195,7 @@ new Chart(document.getElementById('catChart'), {
     type: 'bar',
     data: {
         labels: topCats,
-        datasets: [{ data:topTotals, backgroundColor:topCats.map(c=>getCatColor(c)), borderRadius:4 }]
+        datasets: [{ data:topTotals, backgroundColor:topCats.map(c=>getCatColor(c)), borderRadius:0 }]
     },
     options: {
         indexAxis:'y', responsive:true, maintainAspectRatio:true,
@@ -230,7 +231,7 @@ function _updateExportLabels() {
         const cb = label.querySelector('.export-cb');
         label.style.background = cb.checked ? 'var(--accent, #9CAB84)' : '';
         label.style.color = cb.checked ? 'white' : '';
-        label.style.borderColor = cb.checked ? 'var(--accent, #9CAB84)' : '';
+        label.style.borderColor = cb.checked ? 'var(--text-primary)' : '';
     });
 }
 document.querySelectorAll('.export-cb').forEach(cb => {

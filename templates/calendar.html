@@ -1,10 +1,11 @@
 {% extends "base.html" %}
+{% from "_macros.html" import echo, icon %}
 {% block title %}Ημερολόγιο — {{ month_name }} {{ year }}{% endblock %}
 {% block content %}
 
 <div class="page-header">
     <div>
-        <h1 class="page-title">Ημερολόγιο</h1>
+        {{ echo('Ημερολόγιο') }}
         <!-- Live date/time displayed in the header, updated every second by JS -->
         <p class="page-sub" id="liveDateHeader">{{ now.strftime('%A %d/%m/%Y') }}</p>
     </div>

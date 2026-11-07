@@ -27,7 +27,7 @@
     --shadow-md: 0 4px 12px rgba(45,58,42,0.10), 0 2px 4px rgba(45,58,42,0.06);
 }
 
-html, body { height: 100%; font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text-primary); font-size: 14px; line-height: 1.5; }
+html, body { height: 100%; font-family: var(--font-body); background: var(--bg); color: var(--text-primary); font-size: 14px; line-height: 1.5; }
 
 /* ── App Shell ─────────────────────────────────────────────────────────────
    Full-viewport flex container: sidebar on the left, main content fills the rest.
@@ -45,7 +45,7 @@ html, body { height: 100%; font-family: 'DM Sans', sans-serif; background: var(-
 .brand-icon { font-size: 18px; }
 .brand-name { font-size: 15px; font-weight: 600; letter-spacing: -0.3px; }
 .sidebar-clock { padding: 10px 18px 12px; border-bottom: 1px solid var(--border-subtle); }
-.clock-time { font-family: 'DM Mono', monospace; font-size: 18px; font-weight: 500; letter-spacing: 1.5px; }
+.clock-time { font-family: var(--font-body); font-size: 18px; font-weight: 500; letter-spacing: 1.5px; }
 .clock-date { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
 .sidebar-user { display: flex; align-items: center; gap: 7px; padding: 8px 18px 10px; border-bottom: 1px solid var(--border-subtle); }
 .user-icon { font-size: 11px; color: var(--text-muted); }
@@ -89,7 +89,7 @@ html, body { height: 100%; font-family: 'DM Sans', sans-serif; background: var(-
 .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
 .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; box-shadow: var(--shadow); }
 .stat-card-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.7px; margin-bottom: 8px; font-weight: 600; }
-.stat-card-value { font-family: 'DM Mono', monospace; font-size: 20px; font-weight: 500; letter-spacing: -0.5px; }
+.stat-card-value { font-family: var(--font-body); font-size: 20px; font-weight: 500; letter-spacing: -0.5px; }
 .stat-card-sub { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
 /* Card-type color variants */
 .income-card .stat-card-value { color: var(--income); }
@@ -97,7 +97,7 @@ html, body { height: 100%; font-family: 'DM Sans', sans-serif; background: var(-
 .balance-card.positive .stat-card-value { color: var(--positive); }
 .balance-card.negative .stat-card-value { color: var(--negative); }
 /* Top category shows a text value, so override the monospace/large style */
-.top-cat { font-family: 'DM Sans', sans-serif !important; font-size: 15px !important; }
+.top-cat { font-family: var(--font-body) !important; font-size: 15px !important; }
 
 /* ── Budget Alert Bar ────────────────────────────────────────────────────── */
 .alerts-bar { margin-bottom: 16px; display: flex; flex-direction: column; gap: 6px; }
@@ -119,7 +119,7 @@ html, body { height: 100%; font-family: 'DM Sans', sans-serif; background: var(-
 .fixed-check { width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid #ccc; background: white; cursor: pointer; font-size: 10px; display: flex; align-items: center; justify-content: center; transition: all 0.15s; flex-shrink: 0; }
 .fixed-item.paid .fixed-check { background: var(--accent, #9CAB84); border-color: var(--accent, #9CAB84); color: white; }
 .fixed-label { font-size: 12.5px; font-weight: 500; }
-.fixed-amount { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text-muted); }
+.fixed-amount { font-family: var(--font-body); font-size: 11px; color: var(--text-muted); }
 .fixed-cat-tag { font-size: 10px; color: var(--text-muted); background: var(--border-subtle); padding: 1px 5px; border-radius: 99px; }
 
 /* ── Month Detail — 3-Column Layout ─────────────────────────────────────────
@@ -143,14 +143,14 @@ html, body { height: 100%; font-family: 'DM Sans', sans-serif; background: var(-
 /* ── Form Controls ──────────────────────────────────────────────────────────
    Income/Expense tab bar at the top of the add-transaction form. */
 .form-tabs { display: flex; margin: 12px 16px 0; border-radius: 6px; overflow: hidden; border: 1px solid var(--border); }
-.tab-btn { flex: 1; padding: 7px; border: none; background: var(--surface); font-family: 'DM Sans', sans-serif; font-size: 13px; color: var(--text-muted); cursor: pointer; transition: all 0.12s; }
+.tab-btn { flex: 1; padding: 7px; border: none; background: var(--surface); font-family: var(--font-body); font-size: 13px; color: var(--text-muted); cursor: pointer; transition: all 0.12s; }
 .tab-btn.active { background: var(--text-primary); color: white; }
 .form-group { padding: 10px 16px 0; }
 .form-group label { display: block; font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 5px; }
 /* Shared input/select styles applied both via class and descendant selector */
 .form-group input, .form-group select, .cat-select-styled {
     width: 100%; padding: 7px 9px; border: 1px solid var(--border); border-radius: 5px;
-    font-family: 'DM Sans', sans-serif; font-size: 13px; background: var(--surface);
+    font-family: var(--font-body); font-size: 13px; background: var(--surface);
     color: var(--text-primary); outline: none; transition: border-color 0.12s;
 }
 .form-group input:focus, .form-group select:focus, .cat-select-styled:focus { border-color: #aaa; }
@@ -170,9 +170,9 @@ html, body { height: 100%; font-family: 'DM Sans', sans-serif; background: var(-
 .trans-dot.income { color: var(--income); }
 .trans-dot.expense { color: var(--expense); }
 .trans-cat { font-size: 13px; font-weight: 500; }
-.trans-date { font-size: 11px; color: var(--text-muted); margin-top: 1px; font-family: 'DM Mono', monospace; }
+.trans-date { font-size: 11px; color: var(--text-muted); margin-top: 1px; font-family: var(--font-body); }
 .trans-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-.trans-amount { font-family: 'DM Mono', monospace; font-size: 13px; font-weight: 500; }
+.trans-amount { font-family: var(--font-body); font-size: 13px; font-weight: 500; }
 .trans-amount.income { color: var(--income); }
 .trans-amount.expense { color: var(--expense); }
 /* Edit/delete actions are hidden until hover for a cleaner look */
@@ -200,8 +200,8 @@ html, body { height: 100%; font-family: 'DM Sans', sans-serif; background: var(-
 .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 .legend-label { flex: 1; color: var(--text-secondary); font-size: 11px; }
 /* Fixed-width columns for percentage and euro amount so they align vertically */
-.legend-pct { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text-muted); width: 30px; text-align: right; }
-.legend-val { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text-primary); font-weight: 500; width: 54px; text-align: right; }
+.legend-pct { font-family: var(--font-body); font-size: 10px; color: var(--text-muted); width: 30px; text-align: right; }
+.legend-val { font-family: var(--font-body); font-size: 11px; color: var(--text-primary); font-weight: 500; width: 54px; text-align: right; }
 
 /* ── Late Entry Cards ─────────────────────────────────────────────────────
    The orange left border visually distinguishes late-entry UI from normal forms. */
@@ -218,7 +218,7 @@ html, body { height: 100%; font-family: 'DM Sans', sans-serif; background: var(-
 .fixed-manage-row { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--border-subtle); font-size: 13px; }
 .fixed-manage-row:last-child { border-bottom: none; }
 .fixed-manage-label { flex: 1; font-weight: 500; }
-.fixed-manage-amount { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text-muted); }
+.fixed-manage-amount { font-family: var(--font-body); font-size: 12px; color: var(--text-muted); }
 .fixed-manage-cat { font-size: 11px; color: var(--text-muted); background: var(--border-subtle); padding: 1px 6px; border-radius: 99px; }
 /* "Add new fixed expense" form area separated from the existing list */
 .fixed-add-form { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 4px; }
@@ -233,7 +233,7 @@ html, body { height: 100%; font-family: 'DM Sans', sans-serif; background: var(-
 .budget-cat { font-size: 13px; }
 .budget-input-wrap { display: flex; align-items: center; gap: 4px; }
 /* Narrow monospace input for entering euro amounts */
-.budget-input { width: 80px; padding: 5px 7px; border: 1px solid var(--border); border-radius: 5px; font-family: 'DM Mono', monospace; font-size: 12px; text-align: right; }
+.budget-input { width: 80px; padding: 5px 7px; border: 1px solid var(--border); border-radius: 5px; font-family: var(--font-body); font-size: 12px; text-align: right; }
 .budget-euro { font-size: 12px; color: var(--text-muted); }
 
 /* ── Analytics Page ──────────────────────────────────────────────────────── */
@@ -259,7 +259,7 @@ html, body { height: 100%; font-family: 'DM Sans', sans-serif; background: var(-
 .expense { color: var(--expense); }
 .positive { color: var(--positive); }
 .negative { color: var(--negative); }
-.mono { font-family: 'DM Mono', monospace; }
+.mono { font-family: var(--font-body); }
 .muted { color: var(--text-muted); }
 .table-link { font-size: 12px; color: var(--text-muted); text-decoration: none; }
 .table-link:hover { color: var(--text-primary); }
@@ -269,7 +269,7 @@ html, body { height: 100%; font-family: 'DM Sans', sans-serif; background: var(-
 .type-badge.expense { background: var(--expense-bg); color: var(--expense); }
 
 /* ── Buttons ─────────────────────────────────────────────────────────────── */
-.btn { padding: 7px 14px; border-radius: 6px; border: 1px solid transparent; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.12s; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; }
+.btn { padding: 7px 14px; border-radius: 6px; border: 1px solid transparent; font-family: var(--font-body); font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.12s; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; }
 .btn-primary { background: var(--accent, #9CAB84); color: white; border-color: var(--accent, #9CAB84); }
 .btn-primary:hover { background: var(--accent-hover, #89986D); border-color: var(--accent-hover, #89986D); }
 .btn-ghost { background: var(--surface); color: var(--text-secondary); border-color: var(--border); }
@@ -296,7 +296,7 @@ html, body { height: 100%; font-family: 'DM Sans', sans-serif; background: var(-
 /* ── Dashboard ───────────────────────────────────────────────────────────── */
 /* Inline search bar at the top of the dashboard page */
 .search-inline { display: flex; gap: 10px; margin-bottom: 18px; }
-.search-bar { flex: 1; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius); font-family: 'DM Sans', sans-serif; font-size: 14px; background: var(--surface); outline: none; transition: border-color 0.12s; }
+.search-bar { flex: 1; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius); font-family: var(--font-body); font-size: 14px; background: var(--surface); outline: none; transition: border-color 0.12s; }
 .search-bar:focus { border-color: #aaa; }
 /* Dark banner highlighting the active/current month at the top of the dashboard */
 .current-month-banner { background: var(--text-primary); color: white; border-radius: var(--radius); padding: 18px 22px; display: flex; align-items: center; gap: 14px; margin-bottom: 22px; justify-content: space-between; }
@@ -320,7 +320,7 @@ html, body { height: 100%; font-family: 'DM Sans', sans-serif; background: var(-
 /* Stat rows inside each month card (income / expense / balance) */
 .stat-row { display: flex; justify-content: space-between; padding: 3px 0; }
 .stat-label { font-size: 12px; color: var(--text-muted); }
-.stat-val { font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 500; }
+.stat-val { font-family: var(--font-body); font-size: 12px; font-weight: 500; }
 .stat-val.income { color: var(--income); }
 .stat-val.expense { color: var(--expense); }
 .stat-val.positive { color: var(--positive); }
@@ -367,7 +367,7 @@ html, body { height: 100%; font-family: 'DM Sans', sans-serif; background: var(-
 .pw-toggle { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 14px; padding: 2px; }
 .pw-strength { font-size: 11px; margin-top: 4px; min-height: 16px; }
 /* Live clock shown on the login page */
-.auth-time-display { font-family: 'DM Mono', monospace; font-size: 22px; font-weight: 500; color: var(--text-primary); letter-spacing: 2px; text-align: center; }
+.auth-time-display { font-family: var(--font-body); font-size: 22px; font-weight: 500; color: var(--text-primary); letter-spacing: 2px; text-align: center; }
 .auth-date-display { font-size: 12px; color: var(--text-muted); margin-top: 3px; text-align: center; }
 
 /* ── Custom Scrollbar ────────────────────────────────────────────────────── */
@@ -479,7 +479,7 @@ html, body { height: 100%; font-family: 'DM Sans', sans-serif; background: var(-
         text-decoration: none;
         color: var(--text-muted);
         font-size: 10px;
-        font-family: 'DM Sans', sans-serif;
+        font-family: var(--font-body);
         background: none;
         border: none;
         cursor: pointer;
@@ -694,11 +694,11 @@ html, body { height: 100%; font-family: 'DM Sans', sans-serif; background: var(-
     display: flex; flex-direction: column; gap: 1px; margin-bottom: 4px;
 }
 .cal-exp {
-    font-family: 'DM Mono', monospace; font-size: 11px;
+    font-family: var(--font-body); font-size: 11px;
     color: var(--expense); font-weight: 500;
 }
 .cal-inc {
-    font-family: 'DM Mono', monospace; font-size: 11px;
+    font-family: var(--font-body); font-size: 11px;
     color: var(--income); font-weight: 500;
 }
 /* Row of colored dots (up to 4) representing individual transactions */
@@ -723,7 +723,7 @@ html, body { height: 100%; font-family: 'DM Sans', sans-serif; background: var(-
 }
 .cal-sum-item { display: flex; flex-direction: column; gap: 3px; }
 .cal-sum-label { font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.6px; }
-.cal-sum-val { font-family: 'DM Mono', monospace; font-size: 16px; font-weight: 500; }
+.cal-sum-val { font-family: var(--font-body); font-size: 16px; font-weight: 500; }
 .cal-sum-val.income   { color: var(--income); }
 .cal-sum-val.expense  { color: var(--expense); }
 .cal-sum-val.positive { color: var(--positive); }
@@ -734,8 +734,8 @@ html, body { height: 100%; font-family: 'DM Sans', sans-serif; background: var(-
     display: flex; gap: 12px; padding: 8px 0 10px;
     border-bottom: 1px solid var(--border-subtle); margin-bottom: 4px;
 }
-.dm-income  { font-family: 'DM Mono', monospace; font-size: 13px; font-weight: 500; color: var(--income); }
-.dm-expense { font-family: 'DM Mono', monospace; font-size: 13px; font-weight: 500; color: var(--expense); }
+.dm-income  { font-family: var(--font-body); font-size: 13px; font-weight: 500; color: var(--income); }
+.dm-expense { font-family: var(--font-body); font-size: 13px; font-weight: 500; color: var(--expense); }
 .day-modal-trans {
     display: flex; align-items: center; justify-content: space-between;
     padding: 8px 0; border-bottom: 1px solid var(--border-subtle);
@@ -745,7 +745,7 @@ html, body { height: 100%; font-family: 'DM Sans', sans-serif; background: var(-
 .dmt-left { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .dmt-cat { font-size: 13px; font-weight: 500; }
 .dmt-desc { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
-.dmt-amount { font-family: 'DM Mono', monospace; font-size: 13px; font-weight: 500; flex-shrink: 0; }
+.dmt-amount { font-family: var(--font-body); font-size: 13px; font-weight: 500; flex-shrink: 0; }
 .dmt-amount.income  { color: var(--income); }
 .dmt-amount.expense { color: var(--expense); }
 
@@ -810,239 +810,6 @@ html, body { height: 100%; font-family: 'DM Sans', sans-serif; background: var(-
     }
 }
 
-
-/* ═══════════════════════════════════════════════════════════════════
-   Dark Mode — Deep teal/emerald palette
-   #091413 (deepest bg), #285A48 (mid), #408A71 (accent), #B0E4CC (light)
-   ═══════════════════════════════════════════════════════════════════ */
-
-[data-theme="dark"] {
-    --bg: #091413;
-    --surface: #0e1f1c;
-    --border: #1a3a30;
-    --border-subtle: #153028;
-    --text-primary: #B0E4CC;
-    --text-secondary: #7dbfa6;
-    --text-muted: #4a8a72;
-    --income: #6ee7a8;
-    --income-bg: #0e2a1e;
-    --expense: #f0867a;
-    --expense-bg: #2a1414;
-    --positive: #6ee7a8;
-    --negative: #ef6b6b;
-    --accent: #408A71;
-    --accent-hover: #285A48;
-    --shadow: 0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.3);
-    --shadow-md: 0 4px 12px rgba(0,0,0,0.5), 0 2px 4px rgba(0,0,0,0.3);
-}
-
-/* Sidebar */
-[data-theme="dark"] .sidebar {
-    background: #0b1a17;
-    border-right-color: #1a3a30;
-}
-
-/* Cards */
-[data-theme="dark"] .card,
-[data-theme="dark"] .stat-card,
-[data-theme="dark"] .month-card,
-[data-theme="dark"] .current-month-banner,
-[data-theme="dark"] .late-entry-card,
-[data-theme="dark"] .fixed-reminder-bar {
-    background: var(--surface);
-    border-color: var(--border);
-}
-
-/* Auth pages */
-[data-theme="dark"] .auth-body {
-    background: #091413;
-}
-[data-theme="dark"] .auth-card {
-    background: #0e1f1c;
-    border-color: #1a3a30;
-}
-
-/* Inputs */
-[data-theme="dark"] input,
-[data-theme="dark"] select,
-[data-theme="dark"] textarea {
-    background: #0b1a17;
-    border-color: #1a3a30;
-    color: var(--text-primary);
-}
-[data-theme="dark"] input:focus,
-[data-theme="dark"] select:focus {
-    border-color: #408A71;
-    outline-color: #408A71;
-}
-[data-theme="dark"] input::placeholder {
-    color: #3a6b58;
-}
-
-/* Buttons */
-[data-theme="dark"] .btn-primary {
-    background: #408A71;
-    border-color: #408A71;
-    color: #e8fff4;
-}
-[data-theme="dark"] .btn-primary:hover {
-    background: #4a9e82;
-    border-color: #4a9e82;
-}
-[data-theme="dark"] .btn-ghost {
-    color: var(--text-secondary);
-    border-color: var(--border);
-}
-[data-theme="dark"] .btn-ghost:hover {
-    background: #122b25;
-    border-color: #285A48;
-}
-
-/* Modal */
-[data-theme="dark"] .modal-overlay {
-    background: rgba(5, 12, 11, 0.8);
-}
-[data-theme="dark"] .modal {
-    background: #0e1f1c;
-    border: 1px solid #1a3a30;
-}
-
-/* Stat cards */
-[data-theme="dark"] .stat-card {
-    background: #0b1a17;
-}
-[data-theme="dark"] .income-card {
-    background: #0e2a1e;
-}
-[data-theme="dark"] .expense-card {
-    background: #2a1414;
-}
-[data-theme="dark"] .balance-card.positive {
-    background: #0e2a1e;
-}
-[data-theme="dark"] .balance-card.negative {
-    background: #2a1414;
-}
-
-/* Transaction hover */
-[data-theme="dark"] .trans-item:hover {
-    background: #122b25;
-}
-
-/* Alerts */
-[data-theme="dark"] .alert-item {
-    background: #0b1a17;
-    border-color: #1a3a30;
-}
-
-/* Status badges */
-[data-theme="dark"] .status-badge.closed {
-    background: #1a3a30;
-    color: #4a8a72;
-}
-[data-theme="dark"] .status-badge.open {
-    background: #0e2a1e;
-    color: #6ee7a8;
-}
-
-/* Bottom nav */
-[data-theme="dark"] .bottom-nav {
-    background: #0b1a17;
-    border-top-color: #1a3a30;
-}
-
-/* Mobile overlay */
-[data-theme="dark"] .mobile-overlay.active {
-    background: rgba(5, 12, 11, 0.7);
-}
-
-/* Search bar */
-[data-theme="dark"] .search-bar {
-    background: #0b1a17;
-    border-color: #1a3a30;
-    color: var(--text-primary);
-}
-
-/* Privacy mode */
-[data-theme="dark"] .privacy-mode .stat-card-value,
-[data-theme="dark"] .privacy-mode .trans-amount,
-[data-theme="dark"] .privacy-mode .stat-val {
-    color: transparent;
-    text-shadow: 0 0 12px rgba(176,228,204,0.3);
-}
-
-/* Card header */
-[data-theme="dark"] .card-header {
-    border-bottom-color: #1a3a30;
-}
-
-/* Nav items */
-[data-theme="dark"] .nav-item:hover {
-    background: #122b25;
-}
-[data-theme="dark"] .nav-item.active {
-    background: #285A48;
-    color: #B0E4CC;
-}
-
-/* Budget rows */
-[data-theme="dark"] .budget-row {
-    border-bottom-color: #1a3a30;
-}
-
-/* Fixed items */
-[data-theme="dark"] .fixed-item.paid {
-    background: #0e2a1e;
-    border-color: #285A48;
-}
-[data-theme="dark"] .fixed-item.paid .fixed-check {
-    background: #408A71;
-    border-color: #408A71;
-}
-[data-theme="dark"] .fixed-check-readonly.paid {
-    background: #0e2a1e;
-    border-color: #285A48;
-    color: #6ee7a8;
-}
-
-/* Delete button hover */
-[data-theme="dark"] .delete-month-btn:hover {
-    background: #2a1414;
-    color: var(--expense);
-}
-
-/* Current month banner */
-[data-theme="dark"] .current-month-banner .btn-primary {
-    background: #B0E4CC;
-    color: #091413;
-}
-
-/* Scrollbar */
-[data-theme="dark"] ::-webkit-scrollbar-track {
-    background: #0b1a17;
-}
-[data-theme="dark"] ::-webkit-scrollbar-thumb {
-    background: #285A48;
-}
-[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
-    background: #408A71;
-}
-
-/* Profile danger card */
-[data-theme="dark"] .profile-danger-card {
-    border-left-color: var(--expense);
-}
-
-/* Late entry card */
-[data-theme="dark"] .late-info-card {
-    border-left-color: #408A71;
-}
-
-/* Row alternating in dark */
-[data-theme="dark"] .fixed-manage-row:nth-child(even) {
-    background: #0b1a17;
-}
-
 /* ═══════════════════════════════════════════════════════════════════
    Toggle Button Group (Profile Appearance Settings)
    ═══════════════════════════════════════════════════════════════════ */
@@ -1075,14 +842,6 @@ html, body { height: 100%; font-family: 'DM Sans', sans-serif; background: var(-
 }
 .toggle-btn:hover:not(.active) {
     background: var(--border-subtle);
-}
-
-[data-theme="dark"] .toggle-btn.active {
-    background: #408A71;
-    color: #e8fff4;
-}
-[data-theme="dark"] .toggle-btn:hover:not(.active) {
-    background: #122b25;
 }
 
 
@@ -1253,10 +1012,6 @@ select:focus {
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
     box-shadow: 0 0 0 3px rgba(156, 171, 132, 0.15);
 }
-[data-theme="dark"] input:focus,
-[data-theme="dark"] select:focus {
-    box-shadow: 0 0 0 3px rgba(64, 138, 113, 0.2);
-}
 
 /* Bottom nav item active indicator */
 .bottom-nav-item.active {
@@ -1272,9 +1027,6 @@ select:focus {
     height: 3px;
     background: var(--accent, #9CAB84);
     border-radius: 0 0 3px 3px;
-}
-[data-theme="dark"] .bottom-nav-item.active::after {
-    background: #408A71;
 }
 
 /* Smooth color transitions for theme switching */
@@ -1312,7 +1064,7 @@ body, .sidebar, .card, .stat-card, .modal, input, select {
     min-height: 18px;
 }
 .calc-result {
-    font-family: 'DM Mono', monospace;
+    font-family: var(--font-body);
     font-size: 28px;
     font-weight: 500;
     color: var(--text-primary);
@@ -1367,30 +1119,6 @@ body, .sidebar, .card, .stat-card, .modal, input, select {
 }
 .calc-zero {
     grid-column: span 2;
-}
-
-/* Dark mode calculator */
-[data-theme="dark"] .calc-btn {
-    background: #0e1f1c;
-    color: var(--text-primary);
-}
-[data-theme="dark"] .calc-btn:hover {
-    background: #1a3a30;
-}
-[data-theme="dark"] .calc-btn:active {
-    background: #285A48;
-}
-[data-theme="dark"] .calc-op {
-    color: #6ee7a8;
-}
-[data-theme="dark"] .calc-eq {
-    background: #408A71;
-}
-[data-theme="dark"] .calc-eq:hover {
-    background: #4a9e82;
-}
-[data-theme="dark"] .calc-display {
-    border-bottom-color: #1a3a30;
 }
 
 /* Compact density calculator */

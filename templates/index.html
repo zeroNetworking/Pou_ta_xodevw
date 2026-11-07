@@ -1,93 +1,118 @@
 {% extends "base.html" %}
+{% from "_macros.html" import echo, icon %}
 {% block title %}Dashboard{% endblock %}
 {% block content %}
-<div class="page-header">
-    <div>
-        <h1 class="page-title">Dashboard</h1>
-        <p class="page-sub">Επισκόπηση οικονομικών</p>
-    </div>
-    <div class="header-actions">
-        <button class="btn btn-primary" onclick="openNewMonthModal()">➕ Νέος Μήνας</button>
-    </div>
-</div>
+{% set hero_month = current_month or (months[0] if months else None) %}
 
-<!-- Inline search bar -->
-<div class="search-inline">
-    <input type="text" id="searchInput" class="search-bar" placeholder="⌕  Αναζήτηση κινήσεων...">
-    <button class="btn btn-ghost" onclick="doSearch()">Αναζήτηση</button>
-</div>
-
-<!-- Current month banner -->
-{% if current_month %}
-<div class="current-month-banner">
-    <div>
-        <div class="banner-label">Τρέχων Μήνας</div>
-        <div class="banner-title">{{ current_month.name }}</div>
+<!-- ═══════════ Typographic hero ═══════════ -->
+<section class="hero">
+    <div class="hero-eyebrow">
+        {% if current_month %}Τρέχων μήνας · {{ today.year }}{% elif hero_month %}Τελευταίος μήνας{% else %}Καλωσόρισες{% endif %}
     </div>
-    <a href="{{ url_for('month_detail', month_id=current_month.id) }}" class="btn btn-primary">Άνοιγμα →</a>
-</div>
-{% endif %}
+    {{ echo(hero_month.name.split(' ')[0] if hero_month else 'Που τα ξοδεύω', size='hero') }}
+    <div class="hero-actions">
+        {% if hero_month %}
+        <a href="{{ url_for('month_detail', month_id=hero_month.id) }}" class="pill-btn pill-solid">
+            <span>Άνοιγμα {{ hero_month.name }}</span>{{ icon('arrow-right', 15) }}
+        </a>
+        {% endif %}
+        <button class="pill-btn" onclick="openNewMonthModal()">{{ icon('plus', 14) }}<span>Νέος μήνας</span></button>
+    </div>
+    <div class="search-inline hero-search">
+        <input type="text" id="searchInput" class="search-bar" placeholder="Αναζήτηση κινήσεων…">
+        <button class="btn btn-ghost" onclick="doSearch()">Αναζήτηση</button>
+    </div>
+</section>
 
-<!-- ═══════════ Dashboard Summary Charts ═══════════ -->
 {% if dash and dash.monthly|length >= 1 %}
-<div class="section-title">Συνολική Εικόνα</div>
+{% set saving_rate = ((dash.total_balance / dash.total_income) * 100) if dash.total_income > 0 else 0 %}
+<!-- ═══════════ Narrative: quote + 3 columns ═══════════ -->
+<section class="narrative">
+    <div class="hairline"></div>
+    <blockquote class="narrative-quote">
+        Κάθε ευρώ έχει μια <em>ιστορία</em>. Εδώ τη διαβάζεις ολόκληρη.
+    </blockquote>
+    <div class="narrative-grid">
+        <div class="narrative-col">
+            <div class="narrative-label">Συνολικά έσοδα</div>
+            <h3 class="narrative-value income">+{{ "%.2f"|format(dash.total_income) }}€</h3>
+            <p>Όλα τα έσοδα από {{ dash.monthly|length }} {{ 'μήνα' if dash.monthly|length == 1 else 'μήνες' }} καταγραφής.</p>
+        </div>
+        <div class="narrative-col">
+            <div class="narrative-label">Συνολικά έξοδα</div>
+            <h3 class="narrative-value expense">{% if dash.total_expense %}-{% endif %}{{ "%.2f"|format(dash.total_expense) }}€</h3>
+            <p>Μέσος όρος <strong>{{ "%.2f"|format(dash.avg_expense) }}€</strong> ανά μήνα.</p>
+        </div>
+        <div class="narrative-col">
+            <div class="narrative-label">Συνολικό υπόλοιπο</div>
+            <h3 class="narrative-value {% if dash.total_balance >= 0 %}positive{% else %}negative{% endif %}">{{ "%.2f"|format(dash.total_balance) }}€</h3>
+            <p>{% if dash.total_income > 0 %}Κρατάς το <strong>{{ "%.0f"|format(saving_rate) }}%</strong> των εσόδων σου.{% else %}Δεν υπάρχουν ακόμα έσοδα.{% endif %}</p>
+        </div>
+    </div>
+</section>
 
-<!-- All-time summary stat cards -->
-<div class="stats-grid dash-stats">
-    <div class="stat-card income-card">
-        <div class="stat-card-label">Συνολικά Έσοδα</div>
-        <div class="stat-card-value">+{{ "%.2f"|format(dash.total_income) }}€</div>
-    </div>
-    <div class="stat-card expense-card">
-        <div class="stat-card-label">Συνολικά Έξοδα</div>
-        <div class="stat-card-value">-{{ "%.2f"|format(dash.total_expense) }}€</div>
-    </div>
-    <div class="stat-card balance-card {% if dash.total_balance >= 0 %}positive{% else %}negative{% endif %}">
-        <div class="stat-card-label">Συνολικό Υπόλοιπο</div>
-        <div class="stat-card-value">{{ "%.2f"|format(dash.total_balance) }}€</div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-card-label">Μ.Ο. Εξόδων / Μήνα</div>
-        <div class="stat-card-value">{{ "%.2f"|format(dash.avg_expense) }}€</div>
-    </div>
-</div>
-
-<!-- Charts row: trend line + top categories bar -->
+<!-- ═══════════ Asymmetrical showcase grid (12 columns) ═══════════ -->
 {% if dash.monthly|length >= 2 %}
-<div class="dash-charts-row">
-    <div class="card dash-chart-card">
-        <div class="card-header">Μηνιαία Τάση</div>
-        <div class="dash-chart-body">
-            <canvas id="trendChart"></canvas>
-        </div>
+<section class="showcase">
+    <div class="show-card show-rect span-8 reveal">
+        <div class="show-head"><span>Μηνιαία τάση</span><span class="show-meta">Έσοδα · Έξοδα · Υπόλοιπο</span></div>
+        <div class="show-media"><div class="dash-chart-body"><canvas id="trendChart"></canvas></div></div>
     </div>
-    {% if dash.top_categories %}
-    <div class="card dash-chart-card dash-chart-small">
-        <div class="card-header">Top 5 Κατηγορίες Εξόδων</div>
-        <div class="dash-chart-body">
-            <canvas id="topCatsChart"></canvas>
+
+    {% if hero_month %}
+    <a href="{{ url_for('month_detail', month_id=hero_month.id) }}" class="show-card show-pill span-4 reveal">
+        <div class="show-media pill-media">
+            <span class="pill-number">{{ "%02d"|format(hero_month.month) }}</span>
+            <span class="pill-name">{{ hero_month.name }}</span>
+            <span class="pill-status">{% if hero_month.is_closed %}Κλειστός{% else %}Ενεργός{% endif %}</span>
         </div>
-    </div>
+        <span class="pill-overlay"><span>Άνοιγμα</span></span>
+    </a>
     {% endif %}
-</div>
+
+    <div class="show-card show-circle span-5 reveal">
+        <div class="show-media circle-media">
+            <span class="circle-value">{{ "%.0f"|format(saving_rate) }}<small>%</small></span>
+            <span class="circle-label">ποσοστό αποταμίευσης</span>
+        </div>
+    </div>
+
+    <div class="show-card show-rect span-7 reveal">
+        <div class="show-head"><span>Top 5 κατηγορίες εξόδων</span><span class="show-meta">Όλοι οι μήνες</span></div>
+        <div class="show-media">
+            {% if dash.top_categories %}
+            <div class="dash-chart-body"><canvas id="topCatsChart"></canvas></div>
+            {% else %}
+            <div class="chart-empty">Δεν υπάρχουν έξοδα ακόμα</div>
+            {% endif %}
+        </div>
+    </div>
+</section>
 {% endif %}
 {% endif %}
 
-<!-- Month cards grid -->
+<!-- ═══════════ Months as bespoke service cards ═══════════ -->
 {% if months %}
-<div class="section-title">Όλοι οι Μήνες</div>
-<div class="months-grid">
+<div class="section-head">
+    <h2 class="section-heading">Όλοι οι μήνες</h2>
+    <span class="section-count">{{ months|length }}</span>
+</div>
+<div class="months-grid service-grid">
     {% for m in months %}
     <div class="month-card-wrap">
-        <a href="{{ url_for('month_detail', month_id=m.id) }}" class="month-card" data-month-id="{{ m.id }}">
-            <div class="month-card-header">
-                <div class="month-card-name">{{ m.name }}</div>
+        <a href="{{ url_for('month_detail', month_id=m.id) }}" class="month-card service-card" data-month-id="{{ m.id }}">
+            <div class="service-top">
+                <span class="service-icon"><span>{{ "%02d"|format(m.month) }}</span></span>
                 {% if m.is_closed %}<span class="status-badge closed">Κλειστός</span>
                 {% else %}<span class="status-badge open">Ενεργός</span>{% endif %}
             </div>
-            <div class="month-card-stats" id="stats-{{ m.id }}">
-                <div class="stat-loading">Φόρτωση...</div>
+            <div class="month-card-header">
+                <div class="month-card-name">{{ m.name }}</div>
             </div>
+            <div class="month-card-stats" id="stats-{{ m.id }}">
+                <div class="stat-loading">Φόρτωση…</div>
+            </div>
+            <span class="service-cta">Άνοιγμα {{ icon('arrow-right', 14) }}</span>
         </a>
         <button class="delete-month-btn" onclick="deleteMonth({{ m.id }}, '{{ m.name|e }}')" title="Διαγραφή μήνα">✕</button>
     </div>
@@ -95,10 +120,9 @@
 </div>
 {% else %}
 <div class="empty-state">
-    <div class="empty-icon">💰</div>
     <div class="empty-title">Δεν υπάρχουν μήνες</div>
     <div class="empty-sub">Δημιούργησε τον πρώτο σου μήνα για να ξεκινήσεις</div>
-    <button class="btn btn-primary" onclick="openNewMonthModal()">＋ Νέος Μήνας</button>
+    <button class="pill-btn pill-solid" onclick="openNewMonthModal()">{{ icon('plus', 14) }}<span>Νέος μήνας</span></button>
 </div>
 {% endif %}
 {% endblock %}
@@ -149,9 +173,10 @@
 
     // Dark mode detection for chart colors
     const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-    const gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
-    const tickColor = isDark ? '#B0E4CC' : undefined;
-    const legendColor = isDark ? '#B0E4CC' : undefined;
+    const gridColor = isDark ? 'rgba(242,242,242,0.06)' : 'rgba(17,17,17,0.06)';
+    const tickColor = isDark ? '#838282' : '#838282';
+    const legendColor = isDark ? '#d9d9d9' : '#111111';
+    const INK = isDark ? '#f2f2f2' : '#111111';
 
     // Trend chart: income vs expense vs balance line chart over time
     const trendCtx = document.getElementById('trendChart');
@@ -164,33 +189,33 @@
                     {
                         label: 'Έσοδα',
                         data: dashData.map(m => m.income),
-                        borderColor: isDark ? '#4ade80' : '#3a7d44',
-                        backgroundColor: isDark ? 'rgba(74,222,128,0.08)' : 'rgba(58,125,68,0.08)',
-                        borderWidth: 2.5,
-                        tension: 0.3,
+                        borderColor: INK,
+                        backgroundColor: isDark ? 'rgba(242,242,242,0.05)' : 'rgba(17,17,17,0.04)',
+                        borderWidth: 2,
+                        tension: 0,
                         fill: true,
-                        pointRadius: 4,
+                        pointRadius: 3,
                         pointHoverRadius: 6,
                     },
                     {
                         label: 'Έξοδα',
                         data: dashData.map(m => m.expense),
-                        borderColor: isDark ? '#f87171' : '#8b3a3a',
-                        backgroundColor: isDark ? 'rgba(248,113,113,0.08)' : 'rgba(139,58,58,0.08)',
-                        borderWidth: 2.5,
-                        tension: 0.3,
+                        borderColor: '#838282',
+                        backgroundColor: 'rgba(131,130,130,0.06)',
+                        borderWidth: 2,
+                        tension: 0,
                         fill: true,
-                        pointRadius: 4,
+                        pointRadius: 3,
                         pointHoverRadius: 6,
                     },
                     {
                         label: 'Υπόλοιπο',
                         data: dashData.map(m => m.balance),
-                        borderColor: isDark ? '#B0E4CC' : '#9CAB84',
+                        borderColor: isDark ? '#5a5a5a' : '#bfbfbf',
                         backgroundColor: 'transparent',
                         borderWidth: 1.5,
                         borderDash: [6, 3],
-                        tension: 0.3,
+                        tension: 0,
                         fill: false,
                         pointRadius: 3,
                         pointHoverRadius: 5,
@@ -240,8 +265,8 @@
                 datasets: [{
                     data: topCats.map(c => c.total),
                     backgroundColor: barColors,
-                    borderRadius: 4,
-                    barThickness: 24,
+                    borderRadius: 0,
+                    barThickness: 18,
                 }]
             },
             options: {

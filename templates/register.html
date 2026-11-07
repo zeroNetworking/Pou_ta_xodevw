@@ -1,20 +1,21 @@
-<!DOCTYPE html>
+{% from "_macros.html" import echo %}<!DOCTYPE html>
 <html lang="el">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Εγγραφή — Που τα ξοδεύω</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+    {% include "_fonts.html" %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/swiss.css') }}">
+    <script>if (localStorage.getItem('financeDarkMode') === '1') document.documentElement.setAttribute('data-theme', 'dark');</script>
 </head>
 <body class="auth-body">
 <div class="auth-wrap">
     <div class="auth-card">
         <!-- Brand header matching the login page layout -->
         <div class="auth-brand">
-            <span class="auth-icon">💰</span>
-            <span class="auth-title">Που τα ξοδεύω</span>
+            <span class="auth-icon"></span>
+            {{ echo('Που τα ξοδεύω', size='auth', tag='div') }}
         </div>
         <h2 class="auth-heading">Δημιουργία Λογαριασμού</h2>
 
@@ -42,7 +43,7 @@
                 <label>Κωδικός <span class="label-hint">(8+, κεφαλαίο, αριθμός, σύμβολο)</span></label>
                 <div class="pw-wrap">
                     <input type="password" name="password" id="regPw" placeholder="••••••••" required>
-                    <button type="button" class="pw-toggle" onclick="togglePw('regPw', this)">👁</button>
+                    <button type="button" class="pw-toggle" onclick="togglePw('regPw', this)">Δείξε</button>
                 </div>
                 <div class="pw-strength" id="pwStrength"></div>
             </div>
@@ -51,7 +52,7 @@
                 <label>Επιβεβαίωση Κωδικού</label>
                 <div class="pw-wrap">
                     <input type="password" name="confirm" id="regConfirm" placeholder="••••••••" required>
-                    <button type="button" class="pw-toggle" onclick="togglePw('regConfirm', this)">👁</button>
+                    <button type="button" class="pw-toggle" onclick="togglePw('regConfirm', this)">Δείξε</button>
                 </div>
                 <div class="field-hint" id="confirmHint"></div>
             </div>
@@ -102,7 +103,7 @@
 function togglePw(id, btn) {
     const el = document.getElementById(id);
     el.type = el.type === 'password' ? 'text' : 'password';
-    btn.textContent = el.type === 'password' ? '👁' : '🙈';
+    btn.textContent = el.type === 'password' ? 'Δείξε' : 'Κρύψε';
 }
 
 const pwEl = document.getElementById('regPw');

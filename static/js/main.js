@@ -133,12 +133,11 @@ const PRIVACY_KEY = 'financePrivacyMode';
 
 function applyPrivacy(hidden) {
     const btn = document.getElementById('privacyToggle');
-    if (hidden) {
-        document.body.classList.add('privacy-mode');
-        if (btn) { btn.textContent = '🙈'; btn.title = 'Εμφάνιση ποσών'; }
-    } else {
-        document.body.classList.remove('privacy-mode');
-        if (btn) { btn.textContent = '👁'; btn.title = 'Απόκρυψη ποσών'; }
+    // The button holds a line icon; state is shown via the .is-on class (CSS)
+    document.body.classList.toggle('privacy-mode', hidden);
+    if (btn) {
+        btn.classList.toggle('is-on', hidden);
+        btn.title = hidden ? 'Εμφάνιση ποσών' : 'Απόκρυψη ποσών';
     }
 }
 function togglePrivacy() {
@@ -328,3 +327,22 @@ document.addEventListener('keydown', function(e) {
     else if (e.key === 'Escape') closeCalcModal();
     else if (e.key.toLowerCase() === 'c') calcClear();
 });
+
+// ── Chart.js defaults (Swiss theme: Satoshi, muted gray ticks) ─────────
+if (window.Chart) {
+    Chart.defaults.font.family = "'Satoshi', 'Inter', system-ui, sans-serif";
+    Chart.defaults.font.weight = 500;
+    Chart.defaults.color = '#838282';
+}
+// Web fonts load after charts are drawn: re-measure labels once they're ready
+// (otherwise long category names get clipped).
+if (window.Chart && document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(() => {
+        Object.values(Chart.instances || {}).forEach(c => {
+            // Label sizes are cached per font string; drop the cache so they
+            // are measured again with the real font.
+            Object.values(c.scales || {}).forEach(sc => { sc._longestTextCache = {}; sc._labelSizes = null; });
+            c.update('none');
+        });
+    });
+}

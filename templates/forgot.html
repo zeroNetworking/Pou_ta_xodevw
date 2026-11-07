@@ -1,19 +1,20 @@
-<!DOCTYPE html>
+{% from "_macros.html" import echo %}<!DOCTYPE html>
 <html lang="el">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ανάκτηση Κωδικού — Που τα ξοδεύω</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+    {% include "_fonts.html" %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/swiss.css') }}">
+    <script>if (localStorage.getItem('financeDarkMode') === '1') document.documentElement.setAttribute('data-theme', 'dark');</script>
 </head>
 <body class="auth-body">
 <div class="auth-wrap">
     <div class="auth-card">
         <div class="auth-brand">
-            <span class="auth-icon">🔑</span>
-            <span class="auth-title">Ανάκτηση Κωδικού</span>
+            <span class="auth-icon"></span>
+            {{ echo('Ανάκτηση Κωδικού', size='auth', tag='div') }}
         </div>
 
         {% if error %}

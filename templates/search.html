@@ -1,9 +1,10 @@
 {% extends "base.html" %}
+{% from "_macros.html" import echo, icon %}
 {% block title %}Αναζήτηση{% endblock %}
 {% block content %}
 <div class="page-header">
     <div>
-        <h1 class="page-title">Αναζήτηση</h1>
+        {{ echo('Αναζήτηση') }}
         <p class="page-sub">Αναζήτηση σε όλες τις κινήσεις</p>
     </div>
 </div>

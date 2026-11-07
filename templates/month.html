@@ -1,13 +1,14 @@
 {% extends "base.html" %}
+{% from "_macros.html" import echo, icon %}
 {% block title %}{{ month.name }}{% endblock %}
 {% block content %}
 <div class="page-header">
     <div>
-        <h1 class="page-title">{{ month.name }}</h1>
+        {{ echo(month.name) }}
         <p class="page-sub">
             {% if month.is_closed %}
                 <!-- Closed months are shown as read-only with a lock indicator -->
-                <span class="closed-month-badge">🔒 Κλειστός μήνας — μόνο ανάγνωση</span>
+                <span class="closed-month-badge">Κλειστός μήνας — μόνο ανάγνωση</span>
             {% else %}
                 Ενεργός μήνας
             {% endif %}
@@ -16,13 +17,13 @@
     <!-- Action buttons only shown for open months -->
     <div class="header-actions">
         {% if not month.is_closed %}
-        <button class="btn btn-ghost" onclick="openBudgetModal()">⚙ Budget</button>
-        <button class="btn btn-ghost" onclick="openFixedModal()">📌 Σταθερά Έξοδα</button>
+        <button class="btn btn-ghost" onclick="openBudgetModal()">Budget</button>
+        <button class="btn btn-ghost" onclick="openFixedModal()">Σταθερά Έξοδα</button>
         <button class="btn btn-ghost" onclick="confirmCloseMonth({{ month.id }})">✓ Κλείσιμο</button>
         {% endif %}
         <!-- Export options available for both open and closed months -->
-        <a href="{{ url_for('export_month_csv', month_id=month.id) }}" class="btn btn-ghost">⬇ CSV</a>
-        <a href="{{ url_for('export_month_pdf', month_id=month.id) }}" class="btn btn-ghost">⬇ PDF</a>
+        <a href="{{ url_for('export_month_csv', month_id=month.id) }}" class="btn btn-ghost">↓ CSV</a>
+        <a href="{{ url_for('export_month_pdf', month_id=month.id) }}" class="btn btn-ghost">↓ PDF</a>
     </div>
 </div>
 
@@ -63,7 +64,7 @@
 <!-- Fixed expenses reminder bar: interactive checkboxes in open months, read-only in closed months -->
 {% if fixed_expenses %}
 <div class="fixed-reminder-bar">
-    <div class="fixed-reminder-title">📌 Σταθερά Έξοδα Μήνα</div>
+    <div class="fixed-reminder-title">Σταθερά Έξοδα Μήνα</div>
     <div class="fixed-reminder-list">
         {% for fe in fixed_expenses %}
         {% set status = fixed_status[fe.id] %}
@@ -132,7 +133,7 @@
         {% else %}
         <!-- Info card shown instead of the form for closed months -->
         <div class="card late-info-card">
-            <div class="card-header">🔒 Κλειστός Μήνας</div>
+            <div class="card-header">Κλειστός Μήνας</div>
             <div class="late-info-body">
                 <p>Αυτός ο μήνας είναι κλειστός και δεν δέχεται νέες κινήσεις.</p>
                 <p>Αν ξέχασες κάτι, άνοιξε έναν <strong>ενεργό μήνα</strong> και χρησιμοποίησε την <strong>«Καθυστερημένη Καταχώρηση»</strong>.</p>
@@ -159,7 +160,7 @@
                         <div>
                             <div class="trans-cat">
                                 {{ t.category }}{% if t.subcategory %} <span class="sub-tag">{{ t.subcategory }}</span>{% endif %}
-                                {% if t.late_entry %}<span class="late-badge">⏱ Καθυστερημένη</span>{% endif %}
+                                {% if t.late_entry %}<span class="late-badge">Καθυστερημένη</span>{% endif %}
                             </div>
                             <div class="trans-date">{{ t.transaction_date }}{% if t.description %} · {{ t.description }}{% endif %}</div>
                             <!-- Late entry note (reason) shown below the transaction -->
@@ -220,7 +221,7 @@
      Only shown when the current month is open AND there are closed months to target. -->
 {% if not month.is_closed and closed_months %}
 <div class="card late-entry-card">
-    <div class="card-header">⏱ Καθυστερημένη Καταχώρηση σε Κλειστό Μήνα</div>
+    <div class="card-header">Καθυστερημένη Καταχώρηση σε Κλειστό Μήνα</div>
     <div class="late-entry-body">
         <p class="late-hint">Ξέχασες κάτι από προηγούμενο μήνα; Θα εμφανιστεί με ειδική σήμανση.</p>
         <div class="late-form-grid">
@@ -288,7 +289,7 @@
 <!-- Budget Modal: set monthly spending limits per expense category -->
 <div class="modal-overlay" id="budgetModal" onclick="closeModalOnOverlay(event)">
     <div class="modal modal-wide">
-        <div class="modal-header"><h3>⚙ Προϋπολογισμός ανά Κατηγορία</h3><button class="modal-close" onclick="document.getElementById('budgetModal').classList.remove('active')">✕</button></div>
+        <div class="modal-header"><h3>Προϋπολογισμός ανά Κατηγορία</h3><button class="modal-close" onclick="document.getElementById('budgetModal').classList.remove('active')">✕</button></div>
         <div class="modal-body">
             <p class="modal-hint">Ορισμός μηνιαίου budget. Θα ειδοποιηθείς στο 75%, 90% και 100%.</p>
             <!-- One input row per expense category, pre-filled with current budget value -->
@@ -319,7 +320,7 @@
 <!-- Fixed Expenses Modal: manage the list of recurring monthly expenses -->
 <div class="modal-overlay" id="fixedModal" onclick="closeModalOnOverlay(event)">
     <div class="modal modal-wide">
-        <div class="modal-header"><h3>📌 Σταθερά Μηνιαία Έξοδα</h3><button class="modal-close" onclick="document.getElementById('fixedModal').classList.remove('active')">✕</button></div>
+        <div class="modal-header"><h3>Σταθερά Μηνιαία Έξοδα</h3><button class="modal-close" onclick="document.getElementById('fixedModal').classList.remove('active')">✕</button></div>
         <div class="modal-body">
             <p class="modal-hint">Όρισε έξοδα που πρέπει οπωσδήποτε να πληρωθούν κάθε μήνα. Θα εμφανίζονται ως υπενθύμιση.</p>
             <!-- Existing fixed expenses list with edit/delete -->
@@ -351,7 +352,7 @@
                         </select>
                     </div>
                 </div>
-                <button class="btn btn-primary" onclick="addFixed()">＋ Προσθήκη</button>
+                <button class="btn btn-primary" onclick="addFixed()">+ Προσθήκη</button>
             </div>
         </div>
         <!-- Closing this modal triggers a page reload to reflect any changes -->
@@ -390,7 +391,7 @@
         </div>
         <div class="modal-body">
             <div style="text-align:center; padding:12px 0;">
-                <div style="font-size:48px; margin-bottom:12px;">📊</div>
+                <div style="font-size:48px; margin-bottom:12px;"></div>
                 <p style="font-size:15px; font-weight:500; margin-bottom:6px;">
                     Ο μήνας <strong>{{ month.name }}</strong> κλείστηκε επιτυχώς.
                 </p>
@@ -402,7 +403,7 @@
         </div>
         <div class="modal-footer">
             <button class="btn btn-ghost" onclick="closePdfModal()">Όχι, ευχαριστώ</button>
-            <button class="btn btn-primary" onclick="downloadPdfAndClose()">⬇ Κατέβασε PDF</button>
+            <button class="btn btn-primary" onclick="downloadPdfAndClose()">↓ Κατέβασε PDF</button>
         </div>
     </div>
 </div>

@@ -144,23 +144,23 @@ def build_budget_alerts(expense_by_category: list, budgets: dict, stats: dict) -
 
         if percentage >= 100:
             alerts.append({'level': 'danger',
-                'msg': f"🚨 Υπέρβαση budget '{category}': {spent:.2f}€ / {budget_limit:.2f}€ ({percentage:.0f}%)"})
+                'msg': f"Υπέρβαση budget '{category}': {spent:.2f}€ / {budget_limit:.2f}€ ({int(percentage)}%)"})
         elif percentage >= 90:
             alerts.append({'level': 'warning',
-                'msg': f"⚠️ Σχεδόν στο όριο '{category}': {spent:.2f}€ / {budget_limit:.2f}€ ({percentage:.0f}%)"})
+                'msg': f"Σχεδόν στο όριο '{category}': {spent:.2f}€ / {budget_limit:.2f}€ ({int(percentage)}%)"})
         elif percentage >= 75:
             alerts.append({'level': 'info',
-                'msg': f"📊 75%+ budget '{category}': {spent:.2f}€ / {budget_limit:.2f}€ ({percentage:.0f}%)"})
+                'msg': f"75%+ budget '{category}': {spent:.2f}€ / {budget_limit:.2f}€ ({int(percentage)}%)"})
 
     if stats['total_income'] > 0:
         balance_pct = (stats['total_expense'] / stats['total_income']) * 100
         remaining   = stats['total_income'] - stats['total_expense']
         if balance_pct >= 100:
             alerts.append({'level': 'danger',
-                'msg': f"🚨 Τα έξοδα ξεπέρασαν τα έσοδα! ({stats['total_expense']:.2f}€ > {stats['total_income']:.2f}€)"})
+                'msg': f"Τα έξοδα ξεπέρασαν τα έσοδα! ({stats['total_expense']:.2f}€ > {stats['total_income']:.2f}€)"})
         elif balance_pct >= 90:
             alerts.append({'level': 'warning',
-                'msg': f"⚠️ {balance_pct:.0f}% των εσόδων χρησιμοποιήθηκε — απομένουν {remaining:.2f}€"})
+                'msg': f"{int(balance_pct)}% των εσόδων χρησιμοποιήθηκε — απομένουν {remaining:.2f}€"})
 
     return alerts
 
