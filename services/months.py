@@ -71,10 +71,14 @@ def close_month(user_id: int, month_id: int) -> dict:
     db     = get_db()
     cursor = db.cursor()
 
-    cursor.execute("SELECT id FROM months WHERE id=? AND user_id=?", (month_id, user_id))
-    if not cursor.fetchone():
+    cursor.execute("SELECT id, is_closed FROM months WHERE id=? AND user_id=?", (month_id, user_id))
+    month = cursor.fetchone()
+    if not month:
         logger.warning("User %s tried to close month %s they don't own", user_id, month_id)
-        return {'success': False, 'error': 'Ο μήνας δεν βρέθηκε', 'status': 403}
+        return {'success': False, 'error': 'Ο μήνας δεν βρέθηκε', 'status': 404}
+    if month['is_closed']:
+        # Already closed: keep the original closed_at timestamp
+        return {'success': True, 'unchanged': True}
 
     cursor.execute(
         "UPDATE months SET is_closed=1, closed_at=? WHERE id=?",

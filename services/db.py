@@ -21,7 +21,9 @@ def get_db():
     Foreign key enforcement is enabled by default.
     """
     if 'db' not in g:
-        g.db = sqlite3.connect(DB_PATH)
+        # timeout: wait up to 10s for a lock instead of failing immediately
+        # when several Gunicorn workers write at the same time.
+        g.db = sqlite3.connect(DB_PATH, timeout=10)
         g.db.row_factory = sqlite3.Row
         g.db.execute("PRAGMA foreign_keys = ON")
     return g.db
@@ -32,11 +34,16 @@ def init_db():
     Creates all tables and performance indexes.
     Also includes CHECK constraints (item 5) so the DB enforces data integrity
     even if application-level validation has a bug.
-    Called once at app startup from __main__.
+    Called once at app import (dev server and Gunicorn).
     Uses a direct connection (not g) since this runs before any request context.
     """
-    db = sqlite3.connect(DB_PATH)
+    db_dir = os.path.dirname(os.path.abspath(DB_PATH))
+    os.makedirs(db_dir, exist_ok=True)
+
+    db = sqlite3.connect(DB_PATH, timeout=10)
     db.row_factory = sqlite3.Row
+    # WAL lets readers and a writer work concurrently (multiple workers).
+    db.execute("PRAGMA journal_mode = WAL")
     cursor = db.cursor()
 
     cursor.execute('''
@@ -116,6 +123,7 @@ def init_db():
             month_id         INTEGER NOT NULL,
             paid             INTEGER DEFAULT 0 CHECK(paid IN (0, 1)),
             paid_at          TEXT,
+            transaction_id   INTEGER,
             UNIQUE(fixed_expense_id, month_id)
         )
     ''')
@@ -147,11 +155,13 @@ def init_db():
         ('users', 'recovery_question',    'TEXT'),
         ('users', 'recovery_answer_hash', 'TEXT'),
         ('users', 'recovery_answer_salt', 'TEXT'),
+        # Link a fixed payment to the transaction it created (no duplicates)
+        ('fixed_payments', 'transaction_id', 'INTEGER'),
     ]:
         try:
             cursor.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
-        except Exception:
-            pass
+        except sqlite3.OperationalError:
+            pass  # column already exists
 
     # Migration: fix old databases where UNIQUE constraint was (year, month)
     # instead of (user_id, year, month). Check by trying to inspect the schema.
@@ -161,6 +171,10 @@ def init_db():
         if schema and 'UNIQUE(user_id, year, month)' not in schema[0]:
             # Old schema detected — recreate the table with correct constraint
             # Use a transaction so we can rollback if anything goes wrong
+            # legacy_alter_table=ON: without it SQLite >= 3.26 rewrites the
+            # FOREIGN KEY in `transactions` to point at _months_old, which is
+            # then dropped (the bug repair_db.py exists to fix).
+            cursor.execute("PRAGMA legacy_alter_table = ON")
             cursor.execute("ALTER TABLE months RENAME TO _months_old")
             try:
                 cursor.execute('''

@@ -1,14 +1,48 @@
 """
 Fixed Expenses Service
 Business logic for recurring monthly bills and their payment tracking.
+
+Each paid fixed expense with an amount creates one expense transaction in
+the month. The link is stored in fixed_payments.transaction_id, so:
+  - marking "paid" twice never creates a duplicate transaction
+  - marking "unpaid" removes exactly that transaction (not every lookalike)
+  - editing the fixed expense amount later doesn't orphan old transactions
 """
 
 import logging
-from datetime import date, datetime
+from datetime import datetime
 from .db import get_db
-from .validation import safe_float
+from .constants import EXPENSE_TREE
+from .validation import safe_float, parse_flag, parse_int, clean_str
+from .transactions import default_date_for_month
 
 logger = logging.getLogger(__name__)
+
+MAX_LABEL_LENGTH = 100
+FALLBACK_CATEGORY = 'Διάφορα / Έκτακτα'
+
+
+def _error(msg: str, status: int = 400) -> dict:
+    return {'success': False, 'error': msg, 'status': status}
+
+
+def _validate(data: dict) -> tuple[dict | None, dict | None]:
+    label = clean_str(data.get('label'), MAX_LABEL_LENGTH)
+    if label is None:
+        return None, _error(f'Η περιγραφή δεν μπορεί να υπερβαίνει τους {MAX_LABEL_LENGTH} χαρακτήρες')
+    if not label:
+        return None, _error('Η περιγραφή δεν μπορεί να είναι κενή')
+
+    raw_amount = data.get('amount', 0)
+    amount = safe_float(raw_amount, default=-1.0)
+    if amount < 0:
+        return None, _error('Μη έγκυρο ποσό')
+
+    category = clean_str(data.get('category'), 100)
+    if category is None or (category and category not in EXPENSE_TREE):
+        return None, _error('Μη έγκυρη κατηγορία')
+
+    return {'label': label, 'amount': round(amount, 2), 'category': category}, None
 
 
 def add_fixed_expense(user_id: int, data: dict) -> dict:
@@ -16,29 +50,29 @@ def add_fixed_expense(user_id: int, data: dict) -> dict:
     Creates a new recurring fixed expense definition.
     Returns {'success': True, 'id': new_id} or error dict.
     """
-    label = data.get('label', '').strip()
-    if not label:
-        return {'success': False, 'error': 'Η περιγραφή δεν μπορεί να είναι κενή', 'status': 400}
-    if len(label) > 100:
-        return {'success': False, 'error': 'Η περιγραφή δεν μπορεί να υπερβαίνει τους 100 χαρακτήρες', 'status': 400}
+    values, err = _validate(data)
+    if err:
+        return err
 
     db     = get_db()
     cursor = db.cursor()
     cursor.execute(
-        "INSERT INTO fixed_expenses (user_id, label, amount, category) VALUES (?,?,?,?)",
-        (user_id, label, safe_float(data.get('amount', 0)), data.get('category', ''))
+        """INSERT INTO fixed_expenses (user_id, label, amount, category, sort_order)
+           VALUES (?,?,?,?, (SELECT COALESCE(MAX(sort_order), 0) + 1
+                               FROM fixed_expenses WHERE user_id=?))""",
+        (user_id, values['label'], values['amount'], values['category'], user_id)
     )
     db.commit()
     new_id = cursor.lastrowid
-    logger.info("User %s added fixed expense #%s: %s", user_id, new_id, label)
+    logger.info("User %s added fixed expense #%s: %s", user_id, new_id, values['label'])
     return {'success': True, 'id': new_id}
 
 
 def delete_fixed_expense(user_id: int, fixed_expense_id: int) -> dict:
     """
     Deletes a fixed expense and all its payment records.
-    FIX: ownership check runs BEFORE deleting payments to prevent
-    an attacker from wiping another user's payment records.
+    Already-created transactions are kept: they are real money that was
+    spent and belong to the month's history.
     """
     db     = get_db()
     cursor = db.cursor()
@@ -47,8 +81,7 @@ def delete_fixed_expense(user_id: int, fixed_expense_id: int) -> dict:
         "SELECT id FROM fixed_expenses WHERE id=? AND user_id=?", (fixed_expense_id, user_id)
     )
     if not cursor.fetchone():
-        return {'success': False, 'error': 'Δεν βρέθηκε', 'status': 404}
-    # Safe to delete now — ownership confirmed
+        return _error('Δεν βρέθηκε', 404)
     cursor.execute("DELETE FROM fixed_payments WHERE fixed_expense_id=?", (fixed_expense_id,))
     cursor.execute("DELETE FROM fixed_expenses WHERE id=?", (fixed_expense_id,))
     db.commit()
@@ -59,11 +92,11 @@ def delete_fixed_expense(user_id: int, fixed_expense_id: int) -> dict:
 def edit_fixed_expense(user_id: int, fixed_expense_id: int, data: dict) -> dict:
     """
     Updates an existing fixed expense (label, amount, category).
-    Returns {'success': True} or error dict.
+    Affects future payments only; past transactions keep their amounts.
     """
-    label = data.get('label', '').strip()
-    if not label:
-        return {'success': False, 'error': 'Η περιγραφή δεν μπορεί να είναι κενή', 'status': 400}
+    values, err = _validate(data)
+    if err:
+        return err
 
     db     = get_db()
     cursor = db.cursor()
@@ -72,27 +105,55 @@ def edit_fixed_expense(user_id: int, fixed_expense_id: int, data: dict) -> dict:
         "SELECT id FROM fixed_expenses WHERE id=? AND user_id=?", (fixed_expense_id, user_id)
     )
     if not cursor.fetchone():
-        return {'success': False, 'error': 'Δεν βρέθηκε', 'status': 404}
+        return _error('Δεν βρέθηκε', 404)
 
     cursor.execute(
         "UPDATE fixed_expenses SET label=?, amount=?, category=? WHERE id=?",
-        (label, safe_float(data.get('amount', 0)), data.get('category', ''), fixed_expense_id)
+        (values['label'], values['amount'], values['category'], fixed_expense_id)
     )
     db.commit()
-    logger.info("User %s edited fixed expense #%s: %s", user_id, fixed_expense_id, label)
+    logger.info("User %s edited fixed expense #%s: %s", user_id, fixed_expense_id, values['label'])
     return {'success': True}
+
+
+def get_fixed_payment_status(user_id: int, month_id: int) -> tuple[list, dict]:
+    """
+    Returns (fixed_expenses, {fixed_expense_id: {'paid', 'paid_at'}}) for a
+    month in two queries (instead of one query per fixed expense).
+    """
+    cursor = get_db().cursor()
+    cursor.execute(
+        "SELECT * FROM fixed_expenses WHERE user_id=? ORDER BY sort_order, id", (user_id,)
+    )
+    fixed_expenses = cursor.fetchall()
+    cursor.execute(
+        """SELECT fp.fixed_expense_id, fp.paid, fp.paid_at
+           FROM fixed_payments fp JOIN fixed_expenses fe ON fe.id = fp.fixed_expense_id
+           WHERE fp.month_id=? AND fe.user_id=?""",
+        (month_id, user_id)
+    )
+    payments = {row['fixed_expense_id']: row for row in cursor.fetchall()}
+    status = {}
+    for fe in fixed_expenses:
+        p = payments.get(fe['id'])
+        status[fe['id']] = {
+            'paid':    bool(p and p['paid']),
+            'paid_at': p['paid_at'] if p else None,
+        }
+    return fixed_expenses, status
 
 
 def toggle_fixed_payment(user_id: int, data: dict) -> dict:
     """
     Marks a fixed expense as paid or unpaid for a specific month.
-    When paid and the expense has an amount, automatically inserts/removes the transaction.
+    Idempotent: repeating the same request does not change anything.
     Only works on open months.
-    Returns {'success': True} or error dict.
     """
-    fixed_expense_id = data.get('fixed_expense_id')
-    month_id         = data.get('month_id')
-    mark_as_paid     = int(data.get('paid', 1))
+    fixed_expense_id = parse_int(data.get('fixed_expense_id'))
+    month_id         = parse_int(data.get('month_id'))
+    if fixed_expense_id is None or month_id is None:
+        return _error('Μη έγκυρα δεδομένα')
+    mark_as_paid = parse_flag(data.get('paid', 1), default=1)
 
     db     = get_db()
     cursor = db.cursor()
@@ -103,49 +164,67 @@ def toggle_fixed_payment(user_id: int, data: dict) -> dict:
     )
     fixed_expense = cursor.fetchone()
     if not fixed_expense:
-        return {'success': False, 'error': 'Το σταθερό έξοδο δεν βρέθηκε', 'status': 404}
+        return _error('Το σταθερό έξοδο δεν βρέθηκε', 404)
 
-    # Verify the target month is open and belongs to this user
+    # Verify the target month belongs to this user and is open
     cursor.execute("SELECT * FROM months WHERE id=? AND user_id=?", (month_id, user_id))
     target_month = cursor.fetchone()
-    if not target_month or target_month['is_closed']:
-        return {'success': False, 'error': 'Δεν μπορείς να αλλάξεις σταθερά έξοδα σε κλειστό μήνα', 'status': 403}
+    if not target_month:
+        return _error('Ο μήνας δεν βρέθηκε', 404)
+    if target_month['is_closed']:
+        return _error('Δεν μπορείς να αλλάξεις σταθερά έξοδα σε κλειστό μήνα', 403)
 
     cursor.execute(
         "SELECT * FROM fixed_payments WHERE fixed_expense_id=? AND month_id=?",
         (fixed_expense_id, month_id)
     )
-    existing_payment = cursor.fetchone()
+    existing = cursor.fetchone()
+    already_paid = bool(existing and existing['paid'])
 
-    has_amount       = fixed_expense['amount'] and fixed_expense['amount'] > 0
-    auto_description = f"[Σταθερό] {fixed_expense['label']}"
-    category         = fixed_expense['category'] or 'Διάφορα / Έκτακτα'
+    if bool(mark_as_paid) == already_paid:
+        return {'success': True, 'unchanged': True}
 
-    if mark_as_paid and has_amount:
-        # Insert auto-transaction when marking as paid
-        cursor.execute(
-            """INSERT INTO transactions
-               (month_id, category, subcategory, type, amount, description, transaction_date)
-               VALUES (?,?,?,?,?,?,?)""",
-            (month_id, category, '', 'expense', fixed_expense['amount'],
-             auto_description, date.today().isoformat())
-        )
-    elif not mark_as_paid and existing_payment and has_amount:
-        # Remove the auto-transaction when marking as unpaid
-        cursor.execute(
-            """DELETE FROM transactions
-               WHERE month_id=? AND description=? AND amount=? AND type='expense'""",
-            (month_id, auto_description, fixed_expense['amount'])
-        )
+    transaction_id = None
+    if mark_as_paid:
+        amount = fixed_expense['amount'] or 0
+        if amount > 0:
+            category = fixed_expense['category']
+            if category not in EXPENSE_TREE:
+                category = FALLBACK_CATEGORY
+            cursor.execute(
+                """INSERT INTO transactions
+                   (month_id, category, subcategory, type, amount, description, transaction_date)
+                   VALUES (?,?,?,?,?,?,?)""",
+                (month_id, category, '', 'expense', amount,
+                 f"[Σταθερό] {fixed_expense['label']}",
+                 default_date_for_month(target_month['year'], target_month['month']).isoformat())
+            )
+            transaction_id = cursor.lastrowid
+    else:
+        linked_id = existing['transaction_id'] if existing else None
+        if linked_id:
+            cursor.execute(
+                "DELETE FROM transactions WHERE id=? AND month_id=?", (linked_id, month_id)
+            )
+        elif existing and (fixed_expense['amount'] or 0) > 0:
+            # Legacy payments (before transaction_id existed): remove ONE
+            # matching auto-transaction instead of every lookalike.
+            cursor.execute(
+                """DELETE FROM transactions WHERE id = (
+                       SELECT id FROM transactions
+                       WHERE month_id=? AND description=? AND type='expense'
+                       ORDER BY id DESC LIMIT 1)""",
+                (month_id, f"[Σταθερό] {fixed_expense['label']}")
+            )
 
-    # Upsert the payment record
     cursor.execute(
-        """INSERT INTO fixed_payments (fixed_expense_id, month_id, paid, paid_at)
-           VALUES (?,?,?,?)
+        """INSERT INTO fixed_payments (fixed_expense_id, month_id, paid, paid_at, transaction_id)
+           VALUES (?,?,?,?,?)
            ON CONFLICT(fixed_expense_id, month_id)
-           DO UPDATE SET paid=excluded.paid, paid_at=excluded.paid_at""",
+           DO UPDATE SET paid=excluded.paid, paid_at=excluded.paid_at,
+                         transaction_id=excluded.transaction_id""",
         (fixed_expense_id, month_id, mark_as_paid,
-         datetime.now().isoformat() if mark_as_paid else None)
+         datetime.now().isoformat() if mark_as_paid else None, transaction_id)
     )
     db.commit()
     logger.info("User %s toggled fixed payment fe=%s month=%s paid=%s",

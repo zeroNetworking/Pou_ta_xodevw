@@ -41,6 +41,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PRODUCTION=1 \
     DEBUG=0
 
+# DejaVu fonts: the slim image ships with NO fonts, and without a
+# Greek-capable TTF the PDF export falls back to Helvetica (Greek → ■).
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends fonts-dejavu-core \
+ && rm -rf /var/lib/apt/lists/*
+
 # Create a non-root user. Running web apps as root is a needless risk:
 # if a vulnerability lets someone escape the app, they at least don't
 # escape into root inside the container.

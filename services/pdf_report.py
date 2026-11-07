@@ -107,7 +107,11 @@ def _register_greek_fonts():
             return
 
     # Last resort: use Helvetica (will show ■ for accented Greek)
-    # This shouldn't happen on any modern Linux with fonts installed
+    import logging
+    logging.getLogger(__name__).warning(
+        "No Greek-capable TTF font found (install fonts-dejavu-core); "
+        "PDF will fall back to Helvetica and Greek text will not render."
+    )
 
 
 def _fn(bold=False) -> str:

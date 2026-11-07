@@ -16,7 +16,7 @@
     </div>
     <div class="stat-card expense-card">
         <div class="stat-card-label">Συνολικά Έξοδα</div>
-        <div class="stat-card-value">-{{ "%.2f"|format(total_expense) }}€</div>
+        <div class="stat-card-value">{% if total_expense %}-{% endif %}{{ "%.2f"|format(total_expense) }}€</div>
     </div>
     <!-- Balance card changes color class depending on whether it's positive or negative -->
     <div class="stat-card balance-card {% if total_balance >= 0 %}positive{% else %}negative{% endif %}">
@@ -55,9 +55,9 @@
             {% endfor %}
         </div>
         <div style="display:flex; gap:8px; flex-wrap:wrap;">
-            <button class="btn btn-ghost" onclick="selectExportYear(2024)">2024</button>
-            <button class="btn btn-ghost" onclick="selectExportYear(2025)">2025</button>
-            <button class="btn btn-ghost" onclick="selectExportYear(2026)">2026</button>
+            {% for y in analytics_data | map(attribute='year') | unique | sort %}
+            <button class="btn btn-ghost" onclick="selectExportYear({{ y }})">{{ y }}</button>
+            {% endfor %}
             <button class="btn btn-ghost" onclick="selectAllExport()">Όλα</button>
             <button class="btn btn-ghost" onclick="clearAllExport()">Κανένα</button>
             <div style="flex:1"></div>

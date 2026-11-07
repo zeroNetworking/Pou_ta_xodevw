@@ -22,6 +22,7 @@ RATE_LIMITS = {
     'login':           (10,  300),    # 10 failed logins per 5 minutes
     'register':        (5,   3600),   # 5 registrations per hour per IP
     'add_transaction': (60,  60),     # 60 transactions per minute (anti-spam)
+    'forgot':          (10,  300),    # 10 failed recovery attempts per 5 minutes
 }
 
 # The maximum age of any timestamp we ever keep (= longest window)

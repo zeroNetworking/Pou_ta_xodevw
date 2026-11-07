@@ -48,7 +48,7 @@ from services.constants import (
     MONTH_CLOSE_THROTTLE_SECONDS,
 )
 from services.validation  import (
-    is_valid_password, is_valid_username, safe_float, ALLOWED_TYPES,
+    is_valid_password, is_valid_username, safe_float,
     is_valid_recovery_answer, normalize_recovery_answer,
 )
 from services.rate_limit  import is_rate_limited, record_attempt, cleanup_rate_limits
@@ -59,7 +59,11 @@ from services.months      import (
     create_month, close_month as svc_close_month, delete_month as svc_delete_month,
     close_expired_months, get_month_stats, should_suggest_new_month,
 )
-from services.fixed       import add_fixed_expense, delete_fixed_expense, toggle_fixed_payment, edit_fixed_expense
+from services.fixed       import (
+    add_fixed_expense, delete_fixed_expense, toggle_fixed_payment, edit_fixed_expense,
+    get_fixed_payment_status,
+)
+from services.transactions import month_bounds, default_date_for_month
 from services.analytics   import (
     get_analytics_data, build_budget_alerts,
     group_transactions_by_day, calculate_adjacent_months,
@@ -67,13 +71,23 @@ from services.analytics   import (
 )
 from functools import wraps
 
+# Log file lives next to the database by default (in Docker: /app/data),
+# so it survives container rebuilds. Override with LOG_PATH.
+_default_log_dir = os.path.dirname(os.path.abspath(
+    os.environ.get('DATABASE_PATH', os.path.join(os.path.dirname(__file__), 'database.db'))
+))
+LOG_PATH = os.environ.get('LOG_PATH', os.path.join(_default_log_dir, 'finance_app.log'))
+_log_handlers = [logging.StreamHandler()]
+try:
+    os.makedirs(os.path.dirname(LOG_PATH), exist_ok=True)
+    _log_handlers.append(logging.FileHandler(LOG_PATH, encoding='utf-8'))
+except OSError:
+    pass  # read-only FS: console logging only
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s  %(levelname)-8s  %(message)s',
-    handlers=[
-        logging.FileHandler('finance_app.log', encoding='utf-8'),
-        logging.StreamHandler(),
-    ]
+    handlers=_log_handlers,
 )
 logger = logging.getLogger(__name__)
 
@@ -100,6 +114,11 @@ if app.secret_key == _default_dev_key:
         )
 
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=2)
+app.config['SESSION_COOKIE_HTTPONLY']    = True
+app.config['SESSION_COOKIE_SAMESITE']    = 'Lax'
+# Set SESSION_COOKIE_SECURE=1 when the app is served over HTTPS
+app.config['SESSION_COOKIE_SECURE']      = os.environ.get('SESSION_COOKIE_SECURE', '0') == '1'
+app.config['MAX_CONTENT_LENGTH']         = 1 * 1024 * 1024  # 1 MB request cap
 DEBUG_MODE = os.environ.get('DEBUG', '0') == '1'
 
 
@@ -194,16 +213,23 @@ def generate_csrf_token() -> str:
     return session['csrf_token']
 
 
+def _tokens_match(given: str, expected: str) -> bool:
+    """Constant-time comparison; an empty session token never matches."""
+    return bool(expected) and hmac.compare_digest(given.encode(), expected.encode())
+
+
 def validate_csrf_form() -> bool:
-    form_token    = request.form.get('csrf_token', '')
-    session_token = session.get('csrf_token', '')
-    return form_token == session_token and len(session_token) > 0
+    return _tokens_match(request.form.get('csrf_token', ''), session.get('csrf_token', ''))
 
 
 def validate_csrf_json() -> bool:
-    header_token  = request.headers.get('X-CSRF-Token', '')
-    session_token = session.get('csrf_token', '')
-    return header_token == session_token and len(session_token) > 0
+    return _tokens_match(request.headers.get('X-CSRF-Token', ''), session.get('csrf_token', ''))
+
+
+def get_json_body() -> dict:
+    """Returns the JSON body as a dict; {} for missing/invalid/non-object bodies."""
+    data = request.get_json(silent=True)
+    return data if isinstance(data, dict) else {}
 
 
 app.jinja_env.globals['csrf_token'] = generate_csrf_token
@@ -224,6 +250,18 @@ def require_json_fields(data: dict, *fields):
 def service_response(result: dict):
     status = result.pop('status', 200 if result.get('success') else 400)
     return jsonify(result), status
+
+
+def csv_safe(value) -> str:
+    """
+    Neutralises spreadsheet formula injection: a cell starting with
+    = + - @ (or tab/CR) is executed as a formula by Excel/LibreOffice.
+    Prefixing with an apostrophe makes it plain text.
+    """
+    text = '' if value is None else str(value)
+    if text and text[0] in ('=', '+', '-', '@', '\t', '\r'):
+        return "'" + text
+    return text
 
 
 def safe_content_disposition(filename: str) -> str:
@@ -430,9 +468,9 @@ def _consume_reset_token() -> int | None:
     if not token:
         return None
 
+    session.pop('pwd_reset', None)
     age = datetime.now().timestamp() - token.get('issued_at', 0)
     if age > RESET_TOKEN_TTL_SECONDS:
-        session.pop('pwd_reset', None)
         return None
 
     return token.get('user_id')
@@ -565,6 +603,7 @@ def forgot_reset():
             return render_template('forgot_reset.html', error='Σφάλμα ασφαλείας. Ανανέωσε τη σελίδα.')
 
         # Re-validate the token at submission time and consume it.
+        _token_issued_at = session.get('pwd_reset', {}).get('issued_at', 0)
         user_id = _consume_reset_token()
         if not user_id:
             return redirect(url_for('forgot_password'))
@@ -589,8 +628,10 @@ def forgot_reset():
             session.clear()
             return redirect(url_for('login'))
 
-        # On error, re-issue the token so the user can retry without restarting
-        _issue_reset_token(user_id)
+        # On a validation error, give the token back (keeping its ORIGINAL
+        # issue time) so the user can retry, but the 5-minute window
+        # can't be extended indefinitely.
+        session['pwd_reset'] = {'user_id': user_id, 'issued_at': _token_issued_at}
 
     return render_template('forgot_reset.html', error=error)
 
@@ -821,7 +862,7 @@ def new_month():
     if not validate_csrf_json():
         return jsonify({'success': False, 'error': 'CSRF validation failed'}), 403
     user_id = get_current_user_id()
-    data    = request.json or {}
+    data    = get_json_body()
     try:
         year  = int(data.get('year',  date.today().year))
         month = int(data.get('month', date.today().month))
@@ -882,25 +923,18 @@ def month_detail(month_id):
     )
     closed_months = cursor.fetchall()
 
-    cursor.execute(
-        "SELECT * FROM fixed_expenses WHERE user_id=? ORDER BY sort_order, id", (user_id,)
-    )
-    fixed_expenses = cursor.fetchall()
-
-    fixed_payment_status = {}
-    for fe in fixed_expenses:
-        cursor.execute(
-            "SELECT * FROM fixed_payments WHERE fixed_expense_id=? AND month_id=?",
-            (fe['id'], month_id)
-        )
-        payment = cursor.fetchone()
-        fixed_payment_status[fe['id']] = {
-            'paid':    bool(payment and payment['paid']),
-            'paid_at': payment['paid_at'] if payment else None,
-        }
+    fixed_expenses, fixed_payment_status = get_fixed_payment_status(user_id, month_id)
 
     stats  = get_month_stats(month_id)
     alerts = build_budget_alerts(expense_by_category, budgets, stats)
+
+    # Date pickers are limited to the month's own days; late entries get the
+    # bounds of each closed month so the date always matches the month.
+    month_first, month_last = month_bounds(month['year'], month['month'])
+    closed_month_bounds = {
+        cm['id']: [d.isoformat() for d in month_bounds(cm['year'], cm['month'])]
+        for cm in closed_months
+    }
 
     editable = not month['is_closed']
     days_since_close = None
@@ -916,6 +950,9 @@ def month_detail(month_id):
         closed_months=closed_months, fixed_expenses=fixed_expenses,
         fixed_status=fixed_payment_status, greek_months=GREEK_MONTHS,
         editable=editable, days_since_close=days_since_close,
+        month_min_date=month_first.isoformat(), month_max_date=month_last.isoformat(),
+        default_date=default_date_for_month(month['year'], month['month']).isoformat(),
+        closed_month_bounds=closed_month_bounds,
         **get_common_template_vars()
     )
 
@@ -941,12 +978,13 @@ def add_transaction():
         return jsonify({'success': False, 'error': 'CSRF validation failed'}), 403
     user_id   = get_current_user_id()
     client_ip = request.remote_addr or '0.0.0.0'
-    data      = request.json or {}
+    data      = get_json_body()
     if is_rate_limited('add_transaction', client_ip):
         return jsonify({'success': False, 'error': 'Too many requests'}), 429
     ok, err = require_json_fields(data, 'month_id', 'category', 'amount')
     if not ok:
         return err
+    record_attempt('add_transaction', client_ip)
     result = svc_add_transaction(user_id, data)
     return service_response(result)
 
@@ -957,7 +995,7 @@ def edit_transaction(transaction_id):
     if not validate_csrf_json():
         return jsonify({'success': False, 'error': 'CSRF validation failed'}), 403
     user_id = get_current_user_id()
-    data    = request.json or {}
+    data    = get_json_body()
     ok, err = require_json_fields(data, 'category', 'amount')
     if not ok:
         return err
@@ -985,18 +1023,29 @@ def set_budget():
     if not validate_csrf_json():
         return jsonify({'success': False, 'error': 'CSRF validation failed'}), 403
     user_id = get_current_user_id()
-    data    = request.json or {}
+    data    = get_json_body()
     ok, err = require_json_fields(data, 'category')
     if not ok:
         return err
+    category = data.get('category')
+    if category not in EXPENSE_TREE:
+        return jsonify({'success': False, 'error': 'Μη έγκυρη κατηγορία'}), 400
+    amount = safe_float(data.get('amount', 0), default=-1.0)
+    if amount < 0:
+        return jsonify({'success': False, 'error': 'Μη έγκυρο ποσό'}), 400
     db     = get_db()
     cursor = db.cursor()
-    cursor.execute(
-        "INSERT OR REPLACE INTO budgets (user_id, category, amount) VALUES (?,?,?)",
-        (user_id, data.get('category', ''), safe_float(data.get('amount', 0)))
-    )
+    if amount == 0:
+        # 0 = "no budget": remove the row instead of storing a useless limit
+        cursor.execute("DELETE FROM budgets WHERE user_id=? AND category=?", (user_id, category))
+    else:
+        cursor.execute(
+            """INSERT INTO budgets (user_id, category, amount) VALUES (?,?,?)
+               ON CONFLICT(user_id, category) DO UPDATE SET amount=excluded.amount""",
+            (user_id, category, round(amount, 2))
+        )
     db.commit()
-    logger.info("User %s updated budget for '%s': %.2f€", user_id, data.get('category'), safe_float(data.get('amount', 0)))
+    logger.info("User %s updated budget for '%s': %.2f€", user_id, category, amount)
     return jsonify({'success': True})
 
 
@@ -1010,7 +1059,7 @@ def add_fixed_expense_route():
     if not validate_csrf_json():
         return jsonify({'success': False, 'error': 'CSRF validation failed'}), 403
     user_id = get_current_user_id()
-    data    = request.json or {}
+    data    = get_json_body()
     result  = add_fixed_expense(user_id, data)
     return service_response(result)
 
@@ -1031,7 +1080,7 @@ def edit_fixed_expense_route(fixed_expense_id):
     if not validate_csrf_json():
         return jsonify({'success': False, 'error': 'CSRF validation failed'}), 403
     user_id = get_current_user_id()
-    data    = request.json or {}
+    data    = get_json_body()
     result  = edit_fixed_expense(user_id, fixed_expense_id, data)
     return service_response(result)
 
@@ -1042,7 +1091,7 @@ def toggle_fixed_payment_route():
     if not validate_csrf_json():
         return jsonify({'success': False, 'error': 'CSRF validation failed'}), 403
     user_id = get_current_user_id()
-    data    = request.json or {}
+    data    = get_json_body()
     ok, err = require_json_fields(data, 'fixed_expense_id', 'month_id')
     if not ok:
         return err
@@ -1128,18 +1177,26 @@ def calendar_view(year=None, month_num=None):
 @login_required
 def search():
     user_id = get_current_user_id()
-    query   = request.args.get('q', '').strip()
-    pattern = f'%{query}%'
+    query   = request.args.get('q', '').strip()[:100]
     db      = get_db()
     cursor  = db.cursor()
-    cursor.execute(
-        """SELECT t.*, m.name AS month_name
-           FROM transactions t JOIN months m ON t.month_id=m.id
-           WHERE m.user_id=? AND (t.category LIKE ? OR t.subcategory LIKE ? OR t.description LIKE ?)
-           ORDER BY t.transaction_date DESC""",
-        (user_id, pattern, pattern, pattern)
-    )
-    results = cursor.fetchall()
+    results = []
+    if query:
+        # Escape LIKE wildcards so searching for "50%" or "_" is literal
+        escaped = query.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
+        pattern = f'%{escaped}%'
+        cursor.execute(
+            """SELECT t.*, m.id AS month_id, m.name AS month_name
+               FROM transactions t JOIN months m ON t.month_id=m.id
+               WHERE m.user_id=? AND (t.category LIKE ? ESCAPE '\\'
+                                   OR t.subcategory LIKE ? ESCAPE '\\'
+                                   OR t.description LIKE ? ESCAPE '\\'
+                                   OR t.late_entry_note LIKE ? ESCAPE '\\')
+               ORDER BY t.transaction_date DESC, t.id DESC
+               LIMIT 500""",
+            (user_id, pattern, pattern, pattern, pattern)
+        )
+        results = cursor.fetchall()
     cursor.execute(
         "SELECT * FROM months WHERE user_id=? ORDER BY year DESC, month DESC", (user_id,)
     )
@@ -1186,9 +1243,9 @@ def export_month_csv(month_id):
         writer.writerow([
             t['transaction_date'],
             'Έσοδο' if t['type'] == 'income' else 'Έξοδο',
-            t['category'], t['subcategory'] or '',
-            f"{t['amount']:.2f}", t['description'] or '',
-            'Ναι' if t['late_entry'] else 'Όχι', t['late_entry_note'] or '',
+            csv_safe(t['category']), csv_safe(t['subcategory']),
+            f"{t['amount']:.2f}", csv_safe(t['description']),
+            'Ναι' if t['late_entry'] else 'Όχι', csv_safe(t['late_entry_note']),
         ])
         if t['type'] == 'income':
             total_income += t['amount']
@@ -1255,24 +1312,7 @@ def export_month_pdf(month_id):
     )
     expense_by_cat = cursor.fetchall()
 
-    cursor.execute(
-        "SELECT * FROM fixed_expenses WHERE user_id=? ORDER BY sort_order, id",
-        (user_id,)
-    )
-    fixed_expenses = cursor.fetchall()
-
-    # Build fixed payment status dict
-    fixed_payment_status = {}
-    for fe in fixed_expenses:
-        cursor.execute(
-            "SELECT * FROM fixed_payments WHERE fixed_expense_id=? AND month_id=?",
-            (fe['id'], month_id)
-        )
-        payment = cursor.fetchone()
-        fixed_payment_status[fe['id']] = {
-            'paid':    bool(payment and payment['paid']),
-            'paid_at': payment['paid_at'] if payment else None,
-        }
+    fixed_expenses, fixed_payment_status = get_fixed_payment_status(user_id, month_id)
 
     stats = get_month_stats(month_id)
 
@@ -1308,8 +1348,10 @@ def export_year_csv():
         return jsonify({'error': 'Δεν επιλέχθηκαν μήνες'}), 400
 
     try:
-        ids = [int(x) for x in month_ids.split(',') if x.strip()]
+        ids = sorted({int(x) for x in month_ids.split(',') if x.strip()})
     except ValueError:
+        return jsonify({'error': 'Invalid month IDs'}), 400
+    if not ids or len(ids) > 240:
         return jsonify({'error': 'Invalid month IDs'}), 400
 
     db     = get_db()
@@ -1342,8 +1384,8 @@ def export_year_csv():
                 m['name'],
                 t['transaction_date'],
                 'Έσοδο' if t['type'] == 'income' else 'Έξοδο',
-                t['category'], t['subcategory'] or '',
-                f"{t['amount']:.2f}", t['description'] or '',
+                csv_safe(t['category']), csv_safe(t['subcategory']),
+                f"{t['amount']:.2f}", csv_safe(t['description']),
             ])
             if t['type'] == 'income':
                 grand_income += t['amount']

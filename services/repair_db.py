@@ -1,7 +1,7 @@
 """
 Database Repair Script — fixes stale _months_old foreign key references.
 
-Run once: python repair_db.py
+Run once: python services/repair_db.py
 This rebuilds any tables that have broken foreign key references
 while preserving ALL your data.
 """
@@ -11,9 +11,12 @@ import os
 import shutil
 from datetime import datetime
 
-DB_PATH = os.path.join(os.path.dirname(__file__), 'database.db')
+# This script lives in services/, the database in the project root (dev)
+# or in data/ (Docker). DATABASE_PATH wins if set.
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DB_PATH = os.environ.get('DATABASE_PATH') or os.path.join(_ROOT, 'database.db')
 if not os.path.isfile(DB_PATH):
-    DB_PATH = os.path.join(os.path.dirname(__file__), 'data', 'database.db')
+    DB_PATH = os.path.join(_ROOT, 'data', 'database.db')
 
 if not os.path.isfile(DB_PATH):
     print("❌ database.db not found!")

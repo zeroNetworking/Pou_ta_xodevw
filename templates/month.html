@@ -43,7 +43,7 @@
     </div>
     <div class="stat-card expense-card">
         <div class="stat-card-label">Σύνολο Εξόδων</div>
-        <div class="stat-card-value">-{{ "%.2f"|format(stats.total_expense) }}€</div>
+        <div class="stat-card-value">{% if stats.total_expense %}-{% endif %}{{ "%.2f"|format(stats.total_expense) }}€</div>
     </div>
     <!-- Balance card color changes based on sign -->
     <div class="stat-card balance-card {% if stats.balance >= 0 %}positive{% else %}negative{% endif %}">
@@ -329,7 +329,12 @@
                     <span class="fixed-manage-label" id="fml-{{ fe.id }}">{{ fe.label }}</span>
                     {% if fe.amount %}<span class="fixed-manage-amount" id="fma-{{ fe.id }}">{{ "%.2f"|format(fe.amount) }}€</span>{% else %}<span class="fixed-manage-amount" id="fma-{{ fe.id }}"></span>{% endif %}
                     {% if fe.category %}<span class="fixed-manage-cat" id="fmc-{{ fe.id }}">{{ fe.category }}</span>{% else %}<span class="fixed-manage-cat" id="fmc-{{ fe.id }}"></span>{% endif %}
-                    <button class="icon-btn" onclick="openEditFixed({{ fe.id }}, '{{ fe.label|e }}', {{ fe.amount or 0 }}, '{{ (fe.category or '')|e }}')" title="Επεξεργασία">✎</button>
+                    <button class="icon-btn"
+                            data-id="{{ fe.id }}"
+                            data-label="{{ fe.label }}"
+                            data-amount="{{ fe.amount or 0 }}"
+                            data-cat="{{ fe.category or '' }}"
+                            onclick="openEditFixedFromBtn(this)" title="Επεξεργασία">✎</button>
                     <button class="icon-btn danger" onclick="deleteFixed({{ fe.id }})">✕</button>
                 </div>
                 {% endfor %}
@@ -411,14 +416,25 @@ const EXPENSE_TREE = {{ expense_tree | tojson }};
 const INCOME_CATS  = {{ income_categories | tojson }};
 const CAT_COLORS   = {{ cat_colors | tojson }};
 const MONTH_ID     = {{ month.id }};
+const MONTH_MIN_DATE = {{ month_min_date | tojson }};
+const MONTH_MAX_DATE = {{ month_max_date | tojson }};
+const DEFAULT_DATE   = {{ default_date | tojson }};
+// {closed_month_id: [first_day, last_day]} for the late-entry date picker
+const CLOSED_MONTH_BOUNDS = {{ closed_month_bounds | tojson }};
 
 // ── Initialization ────────────────────────────────────────────
 // Set default dates and populate category dropdowns on page load
 document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('dateInput').value = new Date().toISOString().split('T')[0];
-    const ld = document.getElementById('lateDate');
-    if (ld) ld.value = new Date().toISOString().split('T')[0];
-    populateMainCats('expense');
+    // Date pickers only allow days inside this month. DEFAULT_DATE is computed
+    // server-side in local time (toISOString() would give the UTC date, which
+    // is "yesterday" in Greece between 00:00 and 03:00).
+    const di = document.getElementById('dateInput');
+    if (di) { di.min = MONTH_MIN_DATE; di.max = MONTH_MAX_DATE; di.value = DEFAULT_DATE; }
+    const ed = document.getElementById('editDate');
+    if (ed) { ed.min = MONTH_MIN_DATE; ed.max = MONTH_MAX_DATE; }
+    const lms = document.getElementById('lateMonthSel');
+    if (lms) { lms.addEventListener('change', updateLateDateBounds); updateLateDateBounds(); }
+    if (document.getElementById('mainCat')) populateMainCats('expense');
     updateLateCats();
 });
 
@@ -512,7 +528,11 @@ function updateEditCats(selectedCat, selectedSub) {
     const mainSel = document.getElementById('editMainCat');
     mainSel.innerHTML = '';
     if (type === 'income') {
-        INCOME_CATS.forEach(c => mainSel.add(new Option(c,c)));
+        INCOME_CATS.forEach(c => {
+            const o = new Option(c,c);
+            if (c === selectedCat) o.selected = true;
+            mainSel.add(o);
+        });
         document.getElementById('editSubGroup').style.display = 'none';
     } else {
         Object.keys(EXPENSE_TREE).forEach(c => {
@@ -566,6 +586,15 @@ function updateLateCats() {
     if (type === 'income') { INCOME_CATS.forEach(c=>sel.add(new Option(c,c))); document.getElementById('lateSubCat').innerHTML=''; }
     else { Object.keys(EXPENSE_TREE).forEach(c=>sel.add(new Option(c,c))); updateLateSubCats(); }
 }
+// Restricts the late-entry date to the selected closed month (defaults to its last day)
+function updateLateDateBounds() {
+    const mid = document.getElementById('lateMonthSel')?.value;
+    const ld  = document.getElementById('lateDate');
+    const b   = CLOSED_MONTH_BOUNDS[mid];
+    if (!ld || !b) return;
+    ld.min = b[0]; ld.max = b[1];
+    if (!ld.value || ld.value < b[0] || ld.value > b[1]) ld.value = b[1];
+}
 // Updates the subcategory dropdown in the late entry form
 function updateLateSubCats() {
     const main = document.getElementById('lateMainCat')?.value;
@@ -584,9 +613,11 @@ function addLateEntry() {
     const dt   = document.getElementById('lateDate').value;
     const note = document.getElementById('lateNote').value || 'Καθυστερημένη καταχώρηση';
     if (!amount||amount<=0) { alert('Εισάγετε ποσό'); return; }
+    if (!dt) { alert('Επιλέξτε ημερομηνία'); return; }
     apiFetch('/add_transaction',{method:'POST',
         body:JSON.stringify({month_id:mid,category:cat,subcategory:sub,type,amount,date:dt,late_entry:1,late_entry_note:note})
-    }).then(r=>r.json()).then(d=>{if(d.success){alert('✓ Καταχωρήθηκε!');location.reload();}else alert(d.error||'Σφάλμα');});
+    }).then(r=>r.json()).then(d=>{if(d.success){alert('✓ Καταχωρήθηκε!');location.reload();}else alert(d.error||'Σφάλμα');})
+      .catch(e=>{ console.error(e); alert('Σφάλμα σύνδεσης'); });
 }
 
 // ── Budget ────────────────────────────────────────────────────
@@ -628,7 +659,25 @@ function addFixed() {
             const div=document.createElement('div');
             div.className='fixed-manage-row';
             div.id=`fm-${d.id}`;
-            div.innerHTML=`<span class="fixed-manage-label" id="fml-${d.id}">${escapeHtml(label)}</span>${amount?`<span class="fixed-manage-amount" id="fma-${d.id}">${amount.toFixed(2)}€</span>`:`<span class="fixed-manage-amount" id="fma-${d.id}"></span>`}<span class="fixed-manage-cat" id="fmc-${d.id}">${escapeHtml(cat)}</span><button class="icon-btn" onclick="openEditFixed(${d.id}, '${escapeHtml(label).replace(/'/g,"\\'")}', ${amount}, '${escapeHtml(cat).replace(/'/g,"\\'")}')" title="Επεξεργασία">✎</button><button class="icon-btn danger" onclick="deleteFixed(${d.id})">✕</button>`;
+            // Built with DOM APIs (not innerHTML) so labels with quotes/HTML are safe
+            const mk = (tag, cls, id, text) => {
+                const el = document.createElement(tag);
+                if (cls) el.className = cls;
+                if (id) el.id = id;
+                if (text) el.textContent = text;
+                return el;
+            };
+            div.appendChild(mk('span', 'fixed-manage-label', `fml-${d.id}`, label));
+            div.appendChild(mk('span', 'fixed-manage-amount', `fma-${d.id}`, amount ? amount.toFixed(2) + '€' : ''));
+            div.appendChild(mk('span', 'fixed-manage-cat', `fmc-${d.id}`, cat));
+            const editBtn = mk('button', 'icon-btn', null, '✎');
+            editBtn.title = 'Επεξεργασία';
+            Object.assign(editBtn.dataset, { id: d.id, label, amount, cat });
+            editBtn.onclick = () => openEditFixedFromBtn(editBtn);
+            const delBtn = mk('button', 'icon-btn danger', null, '✕');
+            delBtn.onclick = () => deleteFixed(d.id);
+            div.appendChild(editBtn);
+            div.appendChild(delBtn);
             document.getElementById('fixedList').appendChild(div);
         } else {
             alert(d.error || 'Σφάλμα');
@@ -647,6 +696,9 @@ function deleteFixed(id) {
     });
 }
 // ── Edit Fixed Expense ───────────────────────────────────────
+function openEditFixedFromBtn(btn) {
+    openEditFixed(btn.dataset.id, btn.dataset.label, parseFloat(btn.dataset.amount) || 0, btn.dataset.cat);
+}
 function openEditFixed(id, label, amount, category) {
     document.getElementById('editFixedId').value = id;
     document.getElementById('editFixedLabel').value = label;
@@ -672,6 +724,8 @@ function saveEditFixed() {
             if (lbl) lbl.textContent = label;
             if (amt) amt.textContent = amount ? amount.toFixed(2) + '€' : '';
             if (ct)  ct.textContent = cat || '';
+            const btn = document.querySelector(`#fm-${id} button[data-id]`);
+            if (btn) Object.assign(btn.dataset, { label, amount, cat });
             document.getElementById('editFixedModal').classList.remove('active');
         } else {
             alert(d.error || 'Σφάλμα');

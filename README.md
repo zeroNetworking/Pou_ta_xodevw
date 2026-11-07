@@ -35,28 +35,27 @@ Finance Manager is not a simple expense tracker. It implements proper **accounti
 ## Project Structure
 
 ```
-finance_manager/
-├── app.py                  # Main Flask application (all routes, logic, helpers)
-├── database.db             # SQLite database (auto-created on first run)
-├── finance_app.log         # Application log file (auto-created)
-├── requirements.txt        # Python dependencies
-├── README.md
+Pou_ta_xodevw/
+├── app.py                  # Flask routes (HTTP in/out), auth & CSRF helpers
+├── requirements.txt        # Runtime dependencies
+├── requirements-dev.txt    # Test dependencies (pytest)
+├── Dockerfile / docker-compose.yml / .dockerignore
 │
-├── templates/
-│   ├── base.html           # Base layout: sidebar, modals, bottom nav
-│   ├── index.html          # Dashboard — month cards grid
-│   ├── month.html          # Month detail — transactions, form, chart
-│   ├── analytics.html      # Analytics — charts, per-month table
-│   ├── calendar.html       # Calendar ledger view
-│   ├── search.html         # Search results
-│   ├── login.html          # Login page
-│   └── register.html       # Registration page
+├── services/
+│   ├── db.py               # Connection (Flask g), schema, migrations
+│   ├── transactions.py     # Add / edit / delete transactions + validation
+│   ├── months.py           # Create / close / delete months, stats
+│   ├── fixed.py            # Fixed expenses + paid/unpaid toggling
+│   ├── analytics.py        # Analytics, dashboard, calendar helpers
+│   ├── pdf_report.py       # Monthly PDF report (ReportLab)
+│   ├── validation.py       # Shared input validation
+│   ├── rate_limit.py       # In-memory sliding-window rate limiter
+│   ├── constants.py        # Months, categories, colors
+│   └── repair_db.py        # One-off DB repair script
 │
-└── static/
-    ├── css/
-    │   └── style.css       # All application styles
-    └── js/
-        └── main.js         # Shared JS: clock, modals, privacy toggle, drawer
+├── templates/              # Jinja2 pages (base, dashboard, month, analytics, ...)
+├── static/                 # style.css, main.js
+└── tests/                  # pytest suite
 ```
 
 ---
@@ -87,7 +86,7 @@ fixed_expenses
 
 fixed_payments
   id, fixed_expense_id → fixed_expenses, month_id → months
-  paid (0/1), paid_at
+  paid (0/1), paid_at, transaction_id → transactions (auto-created expense)
   UNIQUE(fixed_expense_id, month_id)
 ```
 
@@ -100,7 +99,7 @@ fixed_payments
 ```bash
 git clone <repo-url>
 cd finance_manager
-pip install flask
+pip install -r requirements.txt
 ```
 
 ### 2. Set the secret key (important)
@@ -180,21 +179,31 @@ A privacy toggle in the sidebar blurs all monetary values on screen using CSS `f
 
 ---
 
+## Running the Tests
+
+```bash
+pip install -r requirements.txt -r requirements-dev.txt
+pytest
+```
+
+The suite (`tests/`) covers auth & password recovery, CSRF, rate limits,
+transactions (validation, ownership, closed months, late entries), fixed
+expenses, budgets, search, CSV/PDF export and page rendering. Each test runs
+against a fresh temporary SQLite database. GitHub Actions runs it on every
+push (`.github/workflows/tests.yml`).
+
+---
+
 ## Known Limitations & Future Work
 
 | Area | Current State | Future Improvement |
 |---|---|---|
-| Architecture | Single `app.py` file | Split into modules: `auth/`, `months/`, `transactions/`, `services/` |
-| Database | SQLite, raw SQL | PostgreSQL + SQLAlchemy |
-| Auth | Session cookies | JWT tokens |
-| Rate limiting | In-memory (resets on restart) | Redis-backed (persistent) |
-| CSRF | HTML forms only | Headers for JSON API calls |
-| Session expiry | No expiration set | `PERMANENT_SESSION_LIFETIME` |
-| DB indexes | None | Add indexes on `user_id`, `month_id`, `transaction_date` |
-| Background jobs | `close_expired_months` runs on page load | Celery background task |
-| Tests | None | Unit tests for services and routes |
-| Deployment | `debug=True` | Gunicorn + Nginx + Docker |
-| Password reset | Not implemented | Email-based reset flow |
+| Architecture | Routes in `app.py`, logic in `services/` | Flask Blueprints per area |
+| Database | SQLite (WAL mode), raw SQL | PostgreSQL if multi-user grows |
+| Rate limiting | In-memory, per Gunicorn worker | Redis-backed (persistent, shared) |
+| Background jobs | `close_expired_months` runs on page load (throttled) | Scheduled job |
+| Password reset | Security question | Email-based reset flow |
+| Categories | Fixed list in `services/constants.py` | User-defined categories |
 
 ---
 
@@ -203,12 +212,17 @@ A privacy toggle in the sidebar blurs all monetary values on screen using CSS `f
 | Variable | Required | Description |
 |---|---|---|
 | `SECRET_KEY` | Yes (production) | Flask session signing key. Use a long random string. |
+| `DATABASE_PATH` | No | SQLite file path (default: `database.db` next to `app.py`). |
+| `LOG_PATH` | No | Log file path (default: `finance_app.log` next to the database). |
+| `DEBUG` | No | `1` enables the Flask debugger (dev only). |
+| `PRODUCTION` | No | `1` refuses to start with the default `SECRET_KEY`. |
+| `SESSION_COOKIE_SECURE` | No | `1` when served over HTTPS (cookie sent only over TLS). |
 
 ---
 
 ## Logging
 
-All events are written to `finance_app.log` and printed to the console. Logged events include:
+All events are written to `finance_app.log` (next to the database, see `LOG_PATH`) and printed to the console. Logged events include:
 
 - Successful and failed login attempts (with IP address)
 - Month close events
